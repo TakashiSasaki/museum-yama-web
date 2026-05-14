@@ -8,7 +8,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-rout
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 import { useHikes, useHikeDetail } from './hooks/useHikes';
 import { HikePolyline } from './components/HikePolyline';
-import { Mountain, MapPin, Navigation, ExternalLink, X, Compass, Home } from 'lucide-react';
+import { Mountain, MapPin, Navigation, ExternalLink, X, Compass, Home, ChevronLeft } from 'lucide-react';
 import LandingPage from './pages/LandingPage';
 
 const API_KEY =
@@ -120,26 +120,43 @@ function App() {
 
   return (
     <APIProvider apiKey={API_KEY} version="weekly">
-      <div className="flex flex-col-reverse md:flex-row h-screen w-full bg-white overflow-hidden">
+      <div className="flex flex-col h-screen w-full bg-white overflow-hidden">
         
-        {/* Sidebar / Bottom Sheet */}
-        <div className={`md:w-96 w-full bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col transition-all duration-300 z-10 
-          ${selectedHikeId ? 'h-1/3 md:h-full' : 'h-1/2 md:h-full'}`}>
-          <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between shadow-sm">
-            <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <Mountain className="text-emerald-600" size={20} />
-              Ehime Hike Tracker
-            </h1>
-            <button 
-              onClick={() => navigate('/')}
-              className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-gray-200 rounded-full transition-colors"
-              aria-label="ホームに戻る"
+        {/* Top Title Bar */}
+        <div 
+          className="relative py-1 md:py-2 px-3 md:px-4 border-b flex items-center justify-between shadow-sm z-20 animate-slow-pan"
+          style={{ backgroundImage: 'url("/hero-bg.jpg")' }}
+        >
+          <div className="absolute inset-0 bg-black/60"></div>
+          <div className="flex items-center relative z-10">
+            <button
+              onClick={() => navigate(-1)}
+              className="py-1 md:py-2 pr-4 md:pr-4 pl-0 md:pl-2 -ml-1 md:-ml-2 text-white/90 hover:text-emerald-300 transition-colors flex items-center"
+              aria-label="戻る"
+              title="前の画面に戻る"
             >
-              <Home size={18} />
+              <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
             </button>
+            <h1 className="text-sm md:text-base font-bold text-white flex items-center gap-1.5 md:gap-2">
+              <Mountain className="text-emerald-400 w-4 h-4 md:w-5 md:h-5" />
+              えひめの山
+            </h1>
           </div>
-          
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <button 
+            onClick={() => navigate('/')}
+            className="p-1.5 md:p-2 -mr-1 md:-mr-2 text-white/90 hover:text-emerald-300 transition-colors relative z-10"
+            aria-label="ホームに戻る"
+            title="オープニング画面に戻る"
+          >
+            <Home className="w-4 h-4 md:w-5 md:h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col-reverse md:flex-row w-full overflow-hidden">
+          {/* Sidebar / Bottom Sheet */}
+          <div className={`md:w-96 w-full bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col transition-all duration-300 z-10 
+            ${selectedHikeId ? 'h-1/3 md:h-full' : 'h-1/2 md:h-full'}`}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {hikesLoading ? (
               <div className="animate-pulse space-y-4">
                 {[1,2,3].map(i => (
@@ -261,6 +278,7 @@ function App() {
           >
             <Compass size={24} />
           </button>
+        </div>
         </div>
       </div>
     </APIProvider>

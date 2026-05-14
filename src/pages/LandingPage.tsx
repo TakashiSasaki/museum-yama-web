@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Mountain, Map as MapIcon, ArrowRight } from 'lucide-react';
+import { Mountain, Map as MapIcon, ArrowRight, Landmark, ExternalLink } from 'lucide-react';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -62,6 +62,22 @@ export default function LandingPage() {
             </span>
             <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
           </motion.button>
+
+          <motion.a
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.2, duration: 1 }}
+            href="https://portal.museum.ehime-u.ac.jp/"
+            target="_blank"
+            rel="noopener noreferrer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="mt-8 inline-flex items-center justify-center gap-2 text-sm text-gray-300 hover:text-white transition-colors py-2 px-5 rounded-full border border-gray-600 hover:border-gray-400 bg-white/5 backdrop-blur-sm"
+          >
+            <Landmark className="w-4 h-4 text-emerald-400" />
+            ミュージアム ポータルサイトへ
+            <ExternalLink className="w-3 h-3 ml-1 opacity-70" />
+          </motion.a>
         </motion.div>
       </div>
 
