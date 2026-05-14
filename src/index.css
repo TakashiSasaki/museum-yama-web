@@ -8,15 +8,13 @@
 
 @layer utilities {
   @keyframes slow-random-pan {
-    0% { background-position: 0% 10%; }
-    25% { background-position: 80% 90%; }
-    50% { background-position: 100% 20%; }
-    75% { background-position: 30% 80%; }
-    100% { background-position: 0% 10%; }
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
   .animate-slow-pan {
-    background-size: max(120vw, 800px) auto;
+    background-size: 150%;
     background-repeat: no-repeat;
-    animation: slow-random-pan 80s ease-in-out infinite;
+    animation: slow-random-pan 40s ease-in-out infinite;
   }
 }

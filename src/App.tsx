@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 import { useHikes, useHikeDetail } from './hooks/useHikes';
 import { HikePolyline } from './components/HikePolyline';
-import { Mountain, MapPin, Navigation, ExternalLink, X, Compass, Home, ChevronLeft } from 'lucide-react';
+import { Mountain, MapPin, Navigation, ExternalLink, X, Compass, Home, ChevronLeft, Landmark } from 'lucide-react';
 import LandingPage from './pages/LandingPage';
+import heroBg from './assets/background.png';
 
 const API_KEY =
   process.env.GOOGLE_MAPS_PLATFORM_KEY ||
@@ -42,6 +43,7 @@ function App() {
   const defaultCenter = { lat: 33.8416, lng: 132.7661 }; // Ehime center roughly
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(9);
+  const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
 
   // Focus map when hike or waypoint is routed
   useEffect(() => {
@@ -125,7 +127,7 @@ function App() {
         {/* Top Title Bar */}
         <div 
           className="relative py-1 md:py-2 px-3 md:px-4 border-b flex items-center justify-between shadow-sm z-20 animate-slow-pan"
-          style={{ backgroundImage: 'url("/hero-bg.jpg")' }}
+          style={{ backgroundImage: `url(${heroBg})` }}
         >
           <div className="absolute inset-0 bg-black/55"></div>
           <div className="flex items-center relative z-10">
@@ -137,10 +139,13 @@ function App() {
             >
               <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
             </button>
-            <h1 className="text-sm md:text-base font-bold text-white flex items-center gap-1.5 md:gap-2">
+            <button
+              onClick={() => setIsTitleDialogOpen(true)}
+              className="text-sm md:text-base font-bold text-white flex items-center gap-1.5 md:gap-2 hover:text-emerald-200 transition-colors"
+            >
               <Mountain className="text-emerald-400 w-4 h-4 md:w-5 md:h-5" />
               えひめの山
-            </h1>
+            </button>
           </div>
           <button 
             onClick={() => navigate('/')}
@@ -154,6 +159,50 @@ function App() {
 
         <div className="flex-1 flex flex-col-reverse md:flex-row w-full overflow-hidden">
           {/* Sidebar / Bottom Sheet */}
+
+          {/* Title Dialog */}
+          {isTitleDialogOpen && (
+            <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsTitleDialogOpen(false)}>
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm flex flex-col gap-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <Mountain className="text-emerald-600 w-5 h-5" />
+                    えひめの山
+                  </h2>
+                  <button 
+                    onClick={() => setIsTitleDialogOpen(false)}
+                    className="text-gray-400 hover:text-gray-600 p-1 bg-gray-50 rounded-full"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setIsTitleDialogOpen(false);
+                    navigate('/');
+                  }}
+                  className="w-full py-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center gap-2 font-medium transition-colors"
+                >
+                  <Home size={18} />
+                  オープニングに戻る
+                </button>
+
+                <a
+                  href="https://portal.museum.ehime-u.ac.jp/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setIsTitleDialogOpen(false)}
+                  className="w-full py-3 px-4 bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200 rounded-xl flex items-center justify-center gap-2 font-medium transition-colors"
+                >
+                  <Landmark size={18} className="text-emerald-600" />
+                  ポータルを開く
+                  <ExternalLink size={14} className="ml-1 text-gray-400" />
+                </a>
+              </div>
+            </div>
+          )}
+
           <div className={`md:w-96 w-full bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col transition-all duration-300 z-10 
             ${selectedHikeId ? 'h-1/3 md:h-full' : 'h-1/2 md:h-full'}`}>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
