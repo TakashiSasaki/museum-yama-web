@@ -127,7 +127,7 @@ function App() {
           className="relative py-1 md:py-2 px-3 md:px-4 border-b flex items-center justify-between shadow-sm z-20 animate-slow-pan"
           style={{ backgroundImage: 'url("/hero-bg.jpg")' }}
         >
-          <div className="absolute inset-0 bg-black/60"></div>
+          <div className="absolute inset-0 bg-black/55"></div>
           <div className="flex items-center relative z-10">
             <button
               onClick={() => navigate(-1)}
