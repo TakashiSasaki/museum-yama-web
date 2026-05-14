@@ -8,7 +8,8 @@ import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-rout
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 import { useHikes, useHikeDetail } from './hooks/useHikes';
 import { HikePolyline } from './components/HikePolyline';
-import { Mountain, MapPin, Navigation, ExternalLink, X, Compass } from 'lucide-react';
+import { Mountain, MapPin, Navigation, ExternalLink, X, Compass, Home } from 'lucide-react';
+import LandingPage from './pages/LandingPage';
 
 const API_KEY =
   process.env.GOOGLE_MAPS_PLATFORM_KEY ||
@@ -21,7 +22,8 @@ export default function AppWrapper() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/:hikeId?/:waypointId?" element={<App />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/explore/:hikeId?/:waypointId?" element={<App />} />
       </Routes>
     </BrowserRouter>
   );
@@ -85,16 +87,16 @@ function App() {
   };
 
   const handleSelectHike = useCallback((id: string) => {
-    navigate(`/${id}`);
+    navigate(`/explore/${id}`);
   }, [navigate]);
 
   const handleSelectWaypoint = useCallback((id: string, wpId: string) => {
-    navigate(`/${id}/${wpId}`);
+    navigate(`/explore/${id}/${wpId}`);
   }, [navigate]);
 
   const handleClose = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate('/');
+    navigate('/explore');
   }, [navigate]);
 
   if (!hasValidKey) {
@@ -128,6 +130,13 @@ function App() {
               <Mountain className="text-emerald-600" size={20} />
               Ehime Hike Tracker
             </h1>
+            <button 
+              onClick={() => navigate('/')}
+              className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-gray-200 rounded-full transition-colors"
+              aria-label="ホームに戻る"
+            >
+              <Home size={18} />
+            </button>
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
