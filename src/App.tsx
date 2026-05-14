@@ -264,6 +264,17 @@ function App() {
           <Map
             center={mapCenter}
             zoom={mapZoom}
+            minZoom={8}
+            maxZoom={18}
+            restriction={{
+              latLngBounds: {
+                north: 34.45,
+                south: 32.7,
+                east: 133.85,
+                west: 131.95,
+              },
+              strictBounds: false,
+            }}
             onCenterChanged={(ev) => setMapCenter(ev.detail.center)}
             onZoomChanged={(ev) => setMapZoom(ev.detail.zoom)}
             mapId="EHIME_HIKE_MAP_ID"
