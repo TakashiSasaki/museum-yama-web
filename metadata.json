@@ -1,0 +1,6 @@
+{
+  "name": "Ehime Hike Tracker",
+  "description": "Visualize hiking records from YAMAP on a Google Map.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": []
+}
