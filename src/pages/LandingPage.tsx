@@ -11,7 +11,7 @@ export default function LandingPage() {
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ 
-          backgroundImage: 'url("https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2070&auto=format&fit=crop")',
+          backgroundImage: 'url("/hero-bg.jpg")',
         }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/90"></div>
@@ -46,7 +46,7 @@ export default function LandingPage() {
 
           <p className="font-serif text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl mb-12 drop-shadow">
             四国山地の険しい峰々から、瀬戸内に面した穏やかな里山まで。<br className="hidden md:inline" />
-            愛媛の隆起と浸食が織りなす地形の魅力を、300に及ぶ登山記録とともに紐解く。
+            愛媛の隆起と浸食が織りなす地形の魅力を登山記録とともに紐解く。
           </p>
 
           <motion.button
