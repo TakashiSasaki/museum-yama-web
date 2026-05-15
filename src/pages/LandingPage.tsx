@@ -58,19 +58,34 @@ export default function LandingPage() {
             愛媛の隆起と浸食が織りなす地形の魅力を登山記録とともに紐解く。
           </p>
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/explore')}
-            className="group relative inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-medium tracking-wider overflow-hidden transition-colors text-sm md:text-base"
-          >
-            <span className="relative z-10 flex items-center gap-2">
-              <MapIcon className="w-4 h-4 md:w-5 md:h-5" />
-              展示マップを探索する
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </span>
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          </motion.button>
+          <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/explore')}
+              className="group relative inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-medium tracking-wider overflow-hidden transition-colors text-sm md:text-base"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                <MapIcon className="w-4 h-4 md:w-5 md:h-5" />
+                展示マップを探索する
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/earth')}
+              className="group relative inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 rounded-full font-medium tracking-wider transition-colors text-sm md:text-base"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                <MapIcon className="w-4 h-4 md:w-5 md:h-5" />
+                3Dランドスケープ
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </motion.button>
+          </div>
 
           <motion.a
             initial={{ opacity: 0 }}

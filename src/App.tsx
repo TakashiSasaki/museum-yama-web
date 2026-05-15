@@ -12,6 +12,8 @@ import { Mountain, MapPin, Navigation, ExternalLink, X, Compass, Home, ChevronLe
 import LandingPage from './pages/LandingPage';
 import heroBg from './assets/background.png';
 
+import EarthPage from './pages/EarthPage';
+
 const API_KEY =
   process.env.GOOGLE_MAPS_PLATFORM_KEY ||
   (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
@@ -25,6 +27,7 @@ export default function AppWrapper() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/explore/:hikeId?/:waypointId?" element={<App />} />
+        <Route path="/earth" element={<EarthPage />} />
       </Routes>
     </BrowserRouter>
   );
