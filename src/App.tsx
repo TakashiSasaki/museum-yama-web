@@ -44,6 +44,28 @@ function App() {
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(9);
   const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
+  const [edgeGlow, setEdgeGlow] = useState({ top: false, bottom: false, left: false, right: false });
+
+  const MAP_RESTRICTION = {
+    north: 34.45,
+    south: 32.7,
+    east: 133.85,
+    west: 131.95,
+  };
+
+  const handleCenterChanged = useCallback((ev: any) => {
+    const center = ev.detail.center;
+    setMapCenter(center);
+
+    const TOLERANCE = 0.005;
+    
+    setEdgeGlow({
+      top: center.lat >= MAP_RESTRICTION.north - TOLERANCE,
+      bottom: center.lat <= MAP_RESTRICTION.south + TOLERANCE,
+      right: center.lng >= MAP_RESTRICTION.east - TOLERANCE,
+      left: center.lng <= MAP_RESTRICTION.west + TOLERANCE,
+    });
+  }, []);
 
   // Focus map when hike or waypoint is routed
   useEffect(() => {
@@ -260,22 +282,23 @@ function App() {
         </div>
 
         {/* Map Area */}
-        <div className="flex-1 relative h-full w-full">
+        <div className="flex-1 relative h-full w-full overflow-hidden">
+          {/* Boundary Glow Effects */}
+          <div className={`absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.top ? 'opacity-100' : 'opacity-0'}`} />
+          <div className={`absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.bottom ? 'opacity-100' : 'opacity-0'}`} />
+          <div className={`absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.left ? 'opacity-100' : 'opacity-0'}`} />
+          <div className={`absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.right ? 'opacity-100' : 'opacity-0'}`} />
+
           <Map
             center={mapCenter}
             zoom={mapZoom}
             minZoom={8}
             maxZoom={18}
             restriction={{
-              latLngBounds: {
-                north: 34.45,
-                south: 32.7,
-                east: 133.85,
-                west: 131.95,
-              },
+              latLngBounds: MAP_RESTRICTION,
               strictBounds: false,
             }}
-            onCenterChanged={(ev) => setMapCenter(ev.detail.center)}
+            onCenterChanged={handleCenterChanged}
             onZoomChanged={(ev) => setMapZoom(ev.detail.zoom)}
             mapId="EHIME_HIKE_MAP_ID"
             internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}

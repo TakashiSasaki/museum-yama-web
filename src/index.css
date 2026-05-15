@@ -13,7 +13,7 @@
     100% { background-position: 0% 50%; }
   }
   .animate-slow-pan {
-    background-size: 150%;
+    background-size: cover;
     background-repeat: no-repeat;
     animation: slow-random-pan 40s ease-in-out infinite;
   }

@@ -14,7 +14,7 @@ Welcome to the project! When working on this codebase, please adhere to the foll
 ## 3. Styling & Animations
 
 - **Tailwind CSS**: Use Tailwind CSS for all styling.
-- **Custom Animations**: There is an `animate-slow-pan` utility class defined in `src/index.css` that slowly pans background images. If you add new background images that require panning, reuse this class.
+- **Custom Animations**: There is an `animate-slow-pan` utility class defined in `src/index.css` that slowly pans background images. If you add new background images that require panning, reuse this class. **CRITICAL**: Ensure the `animate-slow-pan` class uses `background-size: cover;` rather than explicit percentages (like `150%`). Explicit percentages can cause letterboxing (black areas at the top and bottom) on mobile/portrait aspect ratios.
 
 ## 4. Google Maps Integration
 
