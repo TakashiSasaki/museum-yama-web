@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APIProvider, Map3D } from '@vis.gl/react-google-maps';
-import { Mountain, Home, Compass, Play, Pause } from 'lucide-react';
+import { Mountain, Home, Compass, Play, Pause, Layers } from 'lucide-react';
 import { useHikes } from '../hooks/useHikes';
 
 const API_KEY =
@@ -19,6 +19,7 @@ export default function EarthPage() {
   const [tilt, setTilt] = useState(60);
   const [range, setRange] = useState(50000);
   const [isAutoRotate, setIsAutoRotate] = useState(true);
+  const [mapMode, setMapMode] = useState<'SATELLITE' | 'HYBRID' | 'ROADMAP'>('HYBRID');
 
   useEffect(() => {
     let animationFrameId: number;
@@ -57,6 +58,14 @@ export default function EarthPage() {
     setIsAutoRotate(true);
   }, []);
 
+  const toggleMode = () => {
+    setMapMode((current) => {
+      if (current === 'HYBRID') return 'ROADMAP';
+      if (current === 'ROADMAP') return 'SATELLITE';
+      return 'HYBRID';
+    });
+  };
+
   return (
     <APIProvider apiKey={API_KEY} version="alpha">
       <div className="flex flex-col h-[100dvh] w-full bg-black overflow-hidden select-none">
@@ -83,6 +92,15 @@ export default function EarthPage() {
               </span>
             </button>
             <button
+              onClick={toggleMode}
+              className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-4 rounded-full transition-colors border border-white/20 shadow-lg flex items-center justify-center gap-2"
+            >
+              <Layers className="w-6 h-6" />
+              <span className="hidden md:inline font-medium">
+                マップ: {mapMode === 'HYBRID' ? '地形+ラベル' : mapMode === 'ROADMAP' ? '地図' : '地形のみ'}
+              </span>
+            </button>
+            <button
               onClick={() => navigate('/')}
               className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-4 rounded-full transition-colors border border-white/20 shadow-lg flex items-center justify-center gap-2"
             >
@@ -102,6 +120,7 @@ export default function EarthPage() {
             heading={heading}
             tilt={tilt}
             range={range}
+            mode={mapMode}
             onCameraChanged={(e: any) => {
               if (e.detail) {
                 // To keep state synced if needed, but might cause re-renders. 
