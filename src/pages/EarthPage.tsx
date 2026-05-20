@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { APIProvider, Map3D } from '@vis.gl/react-google-maps';
-import { Mountain, Home, Compass, Play, Pause, Layers } from 'lucide-react';
+import { APIProvider, Map3D, type Map3DRef } from '@vis.gl/react-google-maps';
+import { Mountain, Home, Compass, Play, Pause, Layers, Eye, EyeOff, Zap } from 'lucide-react';
 import { useHikes } from '../hooks/useHikes';
 
 const API_KEY =
@@ -13,35 +13,43 @@ const API_KEY =
 export default function EarthPage() {
   const navigate = useNavigate();
   const { hikes, loading } = useHikes();
+  const mapRef = useRef<Map3DRef>(null);
   
-  const [center, setCenter] = useState({ lat: 33.8416, lng: 132.7661, altitude: 0 });
-  const [heading, setHeading] = useState(0);
-  const [tilt, setTilt] = useState(60);
-  const [range, setRange] = useState(50000);
   const [isAutoRotate, setIsAutoRotate] = useState(true);
-  const [mapMode, setMapMode] = useState<'SATELLITE' | 'HYBRID' | 'ROADMAP'>('HYBRID');
+  const [mapMode, setMapMode] = useState<'SATELLITE' | 'HYBRID' | 'ROADMAP'>('SATELLITE');
+  const [labelsDisabled, setLabelsDisabled] = useState(true);
+  const [isLowResolution, setIsLowResolution] = useState(true);
 
+  // Perform continuous rotaton native via DOM property to bypass React virtual DOM diffing completely
   useEffect(() => {
+    if (!isAutoRotate) return;
+
     let animationFrameId: number;
     let lastTime = performance.now();
+    
+    // Bypass high-cost DOM getter in loop to eliminate Forced Reflows completely.
+    // Sync starting heading once from the map if loaded, defaults to 0.
+    let currentHeading = mapRef.current?.map3d?.heading ?? 0;
 
     const animate = (currentTime: number) => {
       const delta = currentTime - lastTime;
       lastTime = currentTime;
       
-      // Rotate by 5 degrees per second
-      const rotationSpeed = 5; 
-      const deltaRotation = (rotationSpeed * delta) / 1000;
-      
-      setHeading((prev) => (prev + deltaRotation) % 360);
+      const map3d = mapRef.current?.map3d;
+      if (map3d) {
+        // Rotate by 4 degrees per second smoothly
+        const rotationSpeed = 4; 
+        const deltaRotation = (rotationSpeed * delta) / 1000;
+        currentHeading = (currentHeading + deltaRotation) % 360;
+        
+        // Write only, never read from DOM - zero reflow overhead!
+        map3d.heading = currentHeading;
+      }
       
       animationFrameId = requestAnimationFrame(animate);
     };
 
-    if (isAutoRotate) {
-      lastTime = performance.now();
-      animationFrameId = requestAnimationFrame(animate);
-    }
+    animationFrameId = requestAnimationFrame(animate);
 
     return () => {
       if (animationFrameId) {
@@ -50,24 +58,78 @@ export default function EarthPage() {
     };
   }, [isAutoRotate]);
 
+  // Synchronize dynamic labels setting directly on raw Map3D element
+  // Since vis.gl react wrapper defaultLabelsDisabled only applies on mount
+  useEffect(() => {
+    const map3d = mapRef.current?.map3d;
+    if (map3d) {
+      map3d.defaultLabelsDisabled = labelsDisabled;
+    }
+  }, [labelsDisabled]);
+
   const handleSelectHike = useCallback((lat: number, lng: number) => {
-    setCenter({ lat, lng, altitude: 0 });
-    setRange(3000);
-    setTilt(70);
-    setHeading(0);
-    setIsAutoRotate(true);
+    setIsAutoRotate(false);
+    const map3d = mapRef.current?.map3d;
+    if (map3d) {
+      // Use seamless native flying transition if available, otherwise apply instantly
+      if (typeof (map3d as any).flyTo === 'function') {
+        try {
+          (map3d as any).flyTo({
+            endCamera: {
+              center: { lat, lng, altitude: 0 },
+              range: 3500,
+              tilt: 65,
+              heading: 0,
+            },
+            durationMillis: 3000,
+          });
+          
+          // Re-enable autorotate after flyover transition ends
+          const timer = setTimeout(() => {
+            setIsAutoRotate(true);
+          }, 3200);
+          return () => clearTimeout(timer);
+        } catch (e) {
+          console.warn('flyTo failed, switching properties instantly:', e);
+        }
+      }
+      
+      // Fallback
+      map3d.center = { lat, lng, altitude: 0 };
+      map3d.range = 3500;
+      map3d.tilt = 65;
+      map3d.heading = 0;
+      setIsAutoRotate(true);
+    }
   }, []);
 
   const toggleMode = () => {
     setMapMode((current) => {
-      if (current === 'HYBRID') return 'ROADMAP';
-      if (current === 'ROADMAP') return 'SATELLITE';
+      if (current === 'HYBRID') {
+        setLabelsDisabled(false);
+        return 'ROADMAP';
+      }
+      if (current === 'ROADMAP') {
+        setLabelsDisabled(true);
+        return 'SATELLITE';
+      }
+      setLabelsDisabled(false);
       return 'HYBRID';
     });
   };
 
+  const toggleLabels = () => {
+    const nextVal = !labelsDisabled;
+    setLabelsDisabled(nextVal);
+    if (nextVal) {
+      setMapMode('SATELLITE');
+    } else {
+      setMapMode('HYBRID');
+    }
+  };
+
   return (
-    <APIProvider apiKey={API_KEY} version="alpha">
+    <APIProvider apiKey={API_KEY} version="weekly">
       <div className="flex flex-col h-[100dvh] w-full bg-black overflow-hidden select-none">
         {/* Top UI Layout */}
         <div className="absolute top-0 left-0 right-0 z-50 p-6 pointer-events-none flex justify-between items-start">
@@ -101,6 +163,24 @@ export default function EarthPage() {
               </span>
             </button>
             <button
+              onClick={toggleLabels}
+              className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-4 rounded-full transition-colors border border-white/20 shadow-lg flex items-center justify-center gap-2"
+            >
+              {labelsDisabled ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+              <span className="hidden md:inline font-medium">
+                ラベル: {labelsDisabled ? '非表示' : '表示'}
+              </span>
+            </button>
+            <button
+              onClick={() => setIsLowResolution(!isLowResolution)}
+              className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-4 rounded-full transition-colors border border-white/20 shadow-lg flex items-center justify-center gap-2"
+            >
+              <Zap className={`w-6 h-6 ${isLowResolution ? 'text-amber-400 fill-amber-400' : 'text-white'}`} />
+              <span className="hidden md:inline font-medium">
+                画質: {isLowResolution ? '高速(低画質)' : '標準(高画質)'}
+              </span>
+            </button>
+            <button
               onClick={() => navigate('/')}
               className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-4 rounded-full transition-colors border border-white/20 shadow-lg flex items-center justify-center gap-2"
             >
@@ -112,23 +192,28 @@ export default function EarthPage() {
 
         {/* 3D Map Area */}
         <div 
-          className="flex-1 w-full bg-black relative"
+          className="flex-1 w-full bg-black relative overflow-hidden"
           onPointerDown={() => setIsAutoRotate(false)}
         >
-          <Map3D
-            center={center}
-            heading={heading}
-            tilt={tilt}
-            range={range}
-            mode={mapMode}
-            onCameraChanged={(e: any) => {
-              if (e.detail) {
-                // To keep state synced if needed, but might cause re-renders. 
-                // Mostly Map3D manages its own state for performance.
-              }
+          <div 
+            className="absolute top-0 left-0 transition-all duration-300"
+            style={{
+              width: isLowResolution ? '75%' : '100%',
+              height: isLowResolution ? '75%' : '100%',
+              transform: isLowResolution ? 'scale(1.333333)' : 'scale(1)',
+              transformOrigin: 'top left',
             }}
-            defaultLabelsDisabled={false}
-          />
+          >
+            <Map3D
+              ref={mapRef}
+              defaultCenter={{ lat: 33.8416, lng: 132.7661, altitude: 0 }}
+              defaultHeading={0}
+              defaultTilt={60}
+              defaultRange={50000}
+              mode={mapMode}
+              defaultLabelsDisabled={labelsDisabled}
+            />
+          </div>
         </div>
 
         {/* Bottom Drawer for interactively picking a mountain */}
