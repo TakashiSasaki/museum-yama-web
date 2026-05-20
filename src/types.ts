@@ -21,6 +21,7 @@ export interface Hike {
   date: string; // ISO string e.g. "2023-10-15"
   yamapUrl: string;
   startLocation: { lat: number; lng: number }; // For initial map markers
+  summitLocation?: { lat: number; lng: number; elevation: number }; // Summit position & altitude (meters)
   distanceKm?: number;
   durationHours?: number;
 }

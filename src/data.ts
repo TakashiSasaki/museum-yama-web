@@ -8,6 +8,7 @@ export const hikes: Hike[] = [
     date: '2023-11-03',
     yamapUrl: 'https://yamap.com/activities/dummy1',
     startLocation: { lat: 33.7661, lng: 133.1118 }, // Tsuchigoya
+    summitLocation: { lat: 33.7668, lng: 133.1145, elevation: 1982 },
     distanceKm: 9.2,
     durationHours: 6.5,
   },
@@ -17,6 +18,7 @@ export const hikes: Hike[] = [
     date: '2023-10-15',
     yamapUrl: 'https://yamap.com/activities/dummy2',
     startLocation: { lat: 33.7847, lng: 133.2081 },
+    summitLocation: { lat: 33.7880, lng: 133.2030, elevation: 1896 },
     distanceKm: 5.5,
     durationHours: 3.5,
   },
@@ -26,6 +28,7 @@ export const hikes: Hike[] = [
     date: '2024-03-20',
     yamapUrl: 'https://yamap.com/activities/dummy3',
     startLocation: { lat: 33.9538, lng: 132.8532 },
+    summitLocation: { lat: 33.9580, lng: 132.8500, elevation: 986 },
     distanceKm: 6.0,
     durationHours: 3.0,
   }

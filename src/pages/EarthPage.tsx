@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { APIProvider, Map3D, type Map3DRef } from '@vis.gl/react-google-maps';
+import { APIProvider, Map3D, Marker3D, type Map3DRef } from '@vis.gl/react-google-maps';
 import { Mountain, Home, Compass, Play, Pause, Layers, Eye, EyeOff, Zap } from 'lucide-react';
 import { useHikes } from '../hooks/useHikes';
 
@@ -19,8 +19,25 @@ export default function EarthPage() {
   const [mapMode, setMapMode] = useState<'SATELLITE' | 'HYBRID' | 'ROADMAP'>('SATELLITE');
   const [labelsDisabled, setLabelsDisabled] = useState(true);
   const [isLowResolution, setIsLowResolution] = useState(true);
+  const [selectedHike, setSelectedHike] = useState<any>(null);
 
-  // Perform continuous rotaton native via DOM property to bypass React virtual DOM diffing completely
+  // Use refs to avoid stale closures in high-frequency animation loop and clean up timers correctly
+  const selectedHikeRef = useRef<any>(null);
+  const flyToTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    selectedHikeRef.current = selectedHike;
+  }, [selectedHike]);
+
+  useEffect(() => {
+    return () => {
+      if (flyToTimerRef.current) {
+        clearTimeout(flyToTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Perform continuous rotation native via DOM property to bypass React virtual DOM diffing completely
   useEffect(() => {
     if (!isAutoRotate) return;
 
@@ -41,7 +58,7 @@ export default function EarthPage() {
         const rotationSpeed = 4; 
         const deltaRotation = (rotationSpeed * delta) / 1000;
         currentHeading = (currentHeading + deltaRotation) % 360;
-        
+
         // Write only, never read from DOM - zero reflow overhead!
         map3d.heading = currentHeading;
       }
@@ -67,38 +84,52 @@ export default function EarthPage() {
     }
   }, [labelsDisabled]);
 
-  const handleSelectHike = useCallback((lat: number, lng: number) => {
+  const handleSelectHike = useCallback((hike: any) => {
     setIsAutoRotate(false);
+    setSelectedHike(hike);
+
+    // Cancel any previous timer to avoid state collisions
+    if (flyToTimerRef.current) {
+      clearTimeout(flyToTimerRef.current);
+    }
+
     const map3d = mapRef.current?.map3d;
     if (map3d) {
+      const summit = hike.summitLocation || { lat: hike.startLocation.lat, lng: hike.startLocation.lng, elevation: 0 };
+      
+      // Calculate target camera properties:
+      // Center at summit altitude, range 1414m (hypotenuse of 1km south and 1km altitude),
+      // Tilt 45 degrees to look down towards center, heading 0 to face North (from South).
+      const targetCamera = {
+        center: { lat: summit.lat, lng: summit.lng, altitude: summit.elevation },
+        range: 1414,
+        tilt: 45,
+        heading: 0,
+      };
+
       // Use seamless native flying transition if available, otherwise apply instantly
       if (typeof (map3d as any).flyTo === 'function') {
         try {
           (map3d as any).flyTo({
-            endCamera: {
-              center: { lat, lng, altitude: 0 },
-              range: 3500,
-              tilt: 65,
-              heading: 0,
-            },
+            endCamera: targetCamera,
             durationMillis: 3000,
           });
           
           // Re-enable autorotate after flyover transition ends
-          const timer = setTimeout(() => {
+          flyToTimerRef.current = setTimeout(() => {
             setIsAutoRotate(true);
           }, 3200);
-          return () => clearTimeout(timer);
+          return;
         } catch (e) {
           console.warn('flyTo failed, switching properties instantly:', e);
         }
       }
       
       // Fallback
-      map3d.center = { lat, lng, altitude: 0 };
-      map3d.range = 3500;
-      map3d.tilt = 65;
-      map3d.heading = 0;
+      map3d.center = targetCamera.center;
+      map3d.range = targetCamera.range;
+      map3d.tilt = targetCamera.tilt;
+      map3d.heading = targetCamera.heading;
       setIsAutoRotate(true);
     }
   }, []);
@@ -196,12 +227,14 @@ export default function EarthPage() {
           onPointerDown={() => setIsAutoRotate(false)}
         >
           <div 
-            className="absolute top-0 left-0 transition-all duration-300"
+            className="absolute transition-all duration-300"
             style={{
               width: isLowResolution ? '75%' : '100%',
               height: isLowResolution ? '75%' : '100%',
-              transform: isLowResolution ? 'scale(1.333333)' : 'scale(1)',
-              transformOrigin: 'top left',
+              top: '50%',
+              left: '50%',
+              transform: isLowResolution ? 'translate(-50%, -50%) scale(1.333333)' : 'translate(-50%, -50%) scale(1)',
+              transformOrigin: 'center center',
             }}
           >
             <Map3D
@@ -212,26 +245,44 @@ export default function EarthPage() {
               defaultRange={50000}
               mode={mapMode}
               defaultLabelsDisabled={labelsDisabled}
-            />
+            >
+              {selectedHike && (
+                <Marker3D
+                  position={{
+                    lat: selectedHike.summitLocation?.lat || selectedHike.startLocation.lat,
+                    lng: selectedHike.summitLocation?.lng || selectedHike.startLocation.lng,
+                    altitude: selectedHike.summitLocation?.elevation || 0,
+                  }}
+                  label={selectedHike.title}
+                />
+              )}
+            </Map3D>
           </div>
         </div>
 
         {/* Bottom Drawer for interactively picking a mountain */}
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-5xl pointer-events-auto">
           <div className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl p-4 overflow-x-auto flex gap-4 no-scrollbar shadow-2xl">
-            {!loading && hikes.map((hike) => (
-              <button
-                key={hike.id}
-                onClick={() => handleSelectHike(hike.startLocation.lat, hike.startLocation.lng)}
-                className="flex-shrink-0 bg-white/10 hover:bg-white/20 text-white rounded-xl p-4 text-left border border-white/10 transition-all min-w-[200px] flex flex-col gap-2"
-              >
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <Compass size={18} />
-                  <span className="font-semibold text-white text-lg">{hike.title}</span>
-                </div>
-                <span className="text-sm text-gray-300">距離 {hike.distanceKm} km</span>
-              </button>
-            ))}
+            {!loading && hikes.map((hike) => {
+              const isSelected = selectedHike?.id === hike.id;
+              return (
+                <button
+                  key={hike.id}
+                  onClick={() => handleSelectHike(hike)}
+                  className={`flex-shrink-0 text-white rounded-xl p-4 text-left border transition-all min-w-[200px] flex flex-col gap-2 ${
+                    isSelected
+                      ? 'bg-emerald-500/25 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.3)]'
+                      : 'bg-white/10 hover:bg-white/20 border-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <Compass size={18} />
+                    <span className="font-semibold text-white text-lg">{hike.title}</span>
+                  </div>
+                  <span className="text-sm text-gray-300">距離 {hike.distanceKm} km</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
