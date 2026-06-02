@@ -4,12 +4,18 @@ import { APIProvider, Map3D, Marker3D, type Map3DRef } from '@vis.gl/react-googl
 import { Home, Compass, Play, Pause, Layers, Eye, EyeOff, Zap } from 'lucide-react';
 import { useHikes } from '../hooks/useHikes';
 import yamaIcon from '../assets/yama_icon.svg';
+import mountainsData from '../../mountain_merged.json';
 
 const API_KEY =
   process.env.GOOGLE_MAPS_PLATFORM_KEY ||
   (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
   (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
   '';
+
+// Filter out valid mountains once at module load
+const validMountains = (mountainsData as any[]).filter(
+  (m) => m.lat !== null && m.lon !== null
+);
 
 export default function EarthPage() {
   const navigate = useNavigate();
@@ -247,6 +253,19 @@ export default function EarthPage() {
               mode={mapMode}
               defaultLabelsDisabled={labelsDisabled}
             >
+              {/* Show 3D Pin with name and elevation for all valid mountains in Ehime */}
+              {validMountains.map((mountain) => (
+                <Marker3D
+                  key={`mountain-${mountain.No}`}
+                  position={{
+                    lat: mountain.lat,
+                    lng: mountain.lon,
+                    altitude: mountain.ele_gps || Number(mountain.標高) || 0,
+                  }}
+                  label={`${mountain.山名} (${mountain.標高}m)`}
+                />
+              ))}
+
               {selectedHike && (
                 <Marker3D
                   position={{
