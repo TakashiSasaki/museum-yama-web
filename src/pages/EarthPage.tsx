@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APIProvider, Map3D, Marker3D, type Map3DRef } from '@vis.gl/react-google-maps';
-import { Mountain, Home, Compass, Play, Pause, Layers, Eye, EyeOff, Zap } from 'lucide-react';
+import { Home, Compass, Play, Pause, Layers, Eye, EyeOff, Zap } from 'lucide-react';
 import { useHikes } from '../hooks/useHikes';
+import yamaIcon from '../assets/yama_icon.svg';
 
 const API_KEY =
   process.env.GOOGLE_MAPS_PLATFORM_KEY ||
@@ -166,7 +167,7 @@ export default function EarthPage() {
         <div className="absolute top-0 left-0 right-0 z-50 p-6 pointer-events-none flex justify-between items-start">
           <div className="bg-black/50 backdrop-blur-md rounded-2xl p-4 md:p-6 pointer-events-auto border border-white/10 shadow-2xl">
             <h1 className="text-2xl md:text-4xl font-bold text-white flex items-center gap-3">
-              <Mountain className="text-emerald-400 w-8 h-8 md:w-10 md:h-10" />
+              <img src={yamaIcon} alt="えひめの山" className="w-8 h-8 md:w-10 md:h-10 rounded-full" referrerPolicy="no-referrer" />
               えひめの山 3D
             </h1>
             <p className="text-gray-300 mt-2 text-sm md:text-base">

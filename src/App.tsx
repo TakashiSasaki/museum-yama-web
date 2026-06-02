@@ -10,7 +10,8 @@ import { useHikes, useHikeDetail } from './hooks/useHikes';
 import { HikePolyline } from './components/HikePolyline';
 import { Mountain, MapPin, Navigation, ExternalLink, X, Compass, Home, ChevronLeft, Landmark } from 'lucide-react';
 import LandingPage from './pages/LandingPage';
-import heroBg from './assets/background.png';
+import heroBg from './assets/background_new.jpg';
+import yamaIcon from './assets/yama_icon.svg';
 
 import EarthPage from './pages/EarthPage';
 
@@ -168,7 +169,7 @@ function App() {
               onClick={() => setIsTitleDialogOpen(true)}
               className="text-sm md:text-base font-bold text-white flex items-center gap-1.5 md:gap-2 hover:text-emerald-200 transition-colors"
             >
-              <Mountain className="text-emerald-400 w-4 h-4 md:w-5 md:h-5" />
+              <img src={yamaIcon} alt="Icon" className="w-4 h-4 md:w-5 md:h-5 rounded-full" referrerPolicy="no-referrer" />
               えひめの山
             </button>
           </div>
@@ -191,7 +192,7 @@ function App() {
               <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm flex flex-col gap-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-2">
                   <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <Mountain className="text-emerald-600 w-5 h-5" />
+                    <img src={yamaIcon} alt="Icon" className="w-5 h-5 rounded-full" referrerPolicy="no-referrer" />
                     えひめの山
                   </h2>
                   <button 

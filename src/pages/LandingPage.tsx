@@ -1,7 +1,8 @@
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Mountain, Map as MapIcon, ArrowRight, Landmark, ExternalLink } from 'lucide-react';
-import heroBg from '../assets/background.png';
+import { Map as MapIcon, ArrowRight, Landmark, ExternalLink } from 'lucide-react';
+import heroBg from '../assets/background_new.jpg';
+import yamaIcon from '../assets/yama_icon.svg';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export default function LandingPage() {
           backgroundImage: `url(${heroBg})`,
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/80"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/65 to-black/95"></div>
       </div>
 
       {/* Content */}
@@ -30,12 +31,12 @@ export default function LandingPage() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.5, duration: 1.2, ease: "easeOut" }}
-            className="mb-4 md:mb-8 p-3 md:p-4 rounded-full bg-white/5 backdrop-blur-md border border-white/10"
+            className="mb-4 md:mb-6 p-1 rounded-full bg-white/5 backdrop-blur-md border border-white/10"
           >
-            <Mountain className="w-6 h-6 md:w-8 md:h-8 text-emerald-400" strokeWidth={1.5} />
+            <img src={yamaIcon} alt="えひめの山" className="w-12 h-12 md:w-16 md:h-16 rounded-full" referrerPolicy="no-referrer" />
           </motion.div>
 
-          <p className="text-emerald-400 font-sans tracking-[0.2em] text-xs md:text-base uppercase mb-2 md:mb-3">
+          <p className="px-4 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-emerald-500/25 text-emerald-300 font-sans tracking-[0.25em] text-xs md:text-sm uppercase mb-4 md:mb-5 shadow-lg select-none">
             愛媛大学ミュージアム 特別企画
           </p>
 
