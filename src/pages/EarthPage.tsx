@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APIProvider, Map3D, Marker3D, type Map3DRef } from '@vis.gl/react-google-maps';
-import { Home, Compass, Play, Pause, Layers, Eye, EyeOff, Zap } from 'lucide-react';
+import { Home, Compass, Play, Pause, Layers, Eye, EyeOff, Zap, Copy, Check } from 'lucide-react';
 import { useHikes } from '../hooks/useHikes';
 import yamaIcon from '../assets/yama_icon.svg';
 import mountainsData from '../../mountain_merged.json';
@@ -15,6 +15,38 @@ const API_KEY =
 // Filter out valid mountains once at module load
 const validMountains = (mountainsData as any[]).filter(
   (m) => m.lat !== null && m.lon !== null
+);
+
+// Difficulty rank colors: 1: Purple, 2: Blue, 3: Green, 4: Orange, 5: Red
+const getDifficultyColor = (rank: number) => {
+  switch (rank) {
+    case 1:
+      return '#8b5cf6'; // Purple
+    case 2:
+      return '#3b82f6'; // Blue
+    case 3:
+      return '#10b981'; // Green
+    case 4:
+      return '#f97316'; // Orange
+    case 5:
+      return '#ef4444'; // Red
+    default:
+      return '#6b7280'; // Gray (default)
+  }
+};
+
+// SVG Custom Markers with explicit heights to prevent CF3 (0x0 rendering)
+const HeartMarker = ({ color }: { color: string }) => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill={color} stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0px 3px 6px rgba(0,0,0,0.4))' }}>
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+  </svg>
+);
+
+const PinMarker = ({ color }: { color: string }) => (
+  <svg width="32" height="42" viewBox="0 0 24 30" fill={color} stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0px 3px 6px rgba(0,0,0,0.4))' }}>
+    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7Z" />
+    <circle cx="12" cy="9" r="3" fill="#ffffff" />
+  </svg>
 );
 
 export default function EarthPage() {
@@ -31,6 +63,79 @@ export default function EarthPage() {
   // Use refs to avoid stale closures in high-frequency animation loop and clean up timers correctly
   const selectedHikeRef = useRef<any>(null);
   const flyToTimerRef = useRef<any>(null);
+
+  const [cameraState, setCameraState] = useState<any>({
+    center: null,
+    heading: 0,
+    tilt: 0,
+    range: 0,
+    roll: 0
+  });
+  const [copied, setCopied] = useState(false);
+
+  // Monitor camera changes
+  useEffect(() => {
+    const map3d = mapRef.current?.map3d;
+    if (!map3d) return;
+
+    const updateCamera = () => {
+      setCameraState({
+        center: map3d.center ? {
+          lat: map3d.center.lat,
+          lng: map3d.center.lng,
+          altitude: map3d.center.altitude
+        } : null,
+        heading: map3d.heading,
+        tilt: map3d.tilt,
+        range: map3d.range,
+        roll: map3d.roll
+      });
+    };
+
+    updateCamera();
+
+    const events = [
+      'gmp-centerchange',
+      'gmp-headingchange',
+      'gmp-tiltchange',
+      'gmp-rangechange',
+      'gmp-rollchange',
+      'gmp-camerapositionchange'
+    ];
+
+    events.forEach(event => {
+      map3d.addEventListener(event, updateCamera);
+    });
+
+    const interval = setInterval(updateCamera, 500);
+
+    return () => {
+      events.forEach(event => {
+        map3d.removeEventListener(event, updateCamera);
+      });
+      clearInterval(interval);
+    };
+  }, [mapRef.current?.map3d]);
+
+  const handleCopyParams = useCallback(() => {
+    const jsonStr = JSON.stringify({
+      center: cameraState.center ? {
+        lat: Number(cameraState.center.lat.toFixed(6)),
+        lng: Number(cameraState.center.lng.toFixed(6)),
+        altitude: Math.round(cameraState.center.altitude)
+      } : null,
+      heading: Number(cameraState.heading.toFixed(2)),
+      tilt: Number(cameraState.tilt.toFixed(2)),
+      range: Math.round(cameraState.range)
+    }, null, 2);
+
+    navigator.clipboard.writeText(jsonStr).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
+  }, [cameraState]);
 
   useEffect(() => {
     selectedHikeRef.current = selectedHike;
@@ -171,14 +276,8 @@ export default function EarthPage() {
       <div className="flex flex-col h-[100dvh] w-full bg-black overflow-hidden select-none">
         {/* Top UI Layout */}
         <div className="absolute top-0 left-0 right-0 z-50 p-6 pointer-events-none flex justify-between items-start">
-          <div className="bg-black/50 backdrop-blur-md rounded-2xl p-4 md:p-6 pointer-events-auto border border-white/10 shadow-2xl">
-            <h1 className="text-2xl md:text-4xl font-bold text-white flex items-center gap-3">
-              <img src={yamaIcon} alt="えひめの山" className="w-8 h-8 md:w-10 md:h-10 rounded-full" referrerPolicy="no-referrer" />
-              えひめの山 3D
-            </h1>
-            <p className="text-gray-300 mt-2 text-sm md:text-base">
-              Photorealistic 3D Tilesを使った大画面展示向けビューポート
-            </p>
+          <div className="bg-black/50 backdrop-blur-md rounded-full p-2 md:p-2.5 pointer-events-auto border border-white/10 shadow-2xl flex items-center justify-center">
+            <img src={yamaIcon} alt="アイコン" className="w-8 h-8 md:w-12 md:h-12 rounded-full" referrerPolicy="no-referrer" />
           </div>
 
           <div className="flex flex-col gap-3">
@@ -246,25 +345,35 @@ export default function EarthPage() {
           >
             <Map3D
               ref={mapRef}
-              defaultCenter={{ lat: 33.8416, lng: 132.7661, altitude: 0 }}
-              defaultHeading={0}
-              defaultTilt={60}
-              defaultRange={50000}
+              defaultCenter={{ lat: 33.63679, lng: 133.049786, altitude: 677 }}
+              defaultHeading={-67.85}
+              defaultTilt={59.37}
+              defaultRange={204170}
               mode={mapMode}
               defaultLabelsDisabled={labelsDisabled}
             >
               {/* Show 3D Pin with name and elevation for all valid mountains in Ehime */}
-              {validMountains.map((mountain) => (
-                <Marker3D
-                  key={`mountain-${mountain.No}`}
-                  position={{
-                    lat: mountain.lat,
-                    lng: mountain.lon,
-                    altitude: mountain.ele_gps || Number(mountain.標高) || 0,
-                  }}
-                  label={`${mountain.山名} (${mountain.標高}m)`}
-                />
-              ))}
+              {validMountains.map((mountain) => {
+                const color = getDifficultyColor(mountain.難易度ランク);
+                const isRecommended = mountain.エントリーコースお勧め山 === true;
+                return (
+                  <Marker3D
+                    key={`mountain-${mountain.No}`}
+                    position={{
+                      lat: mountain.lat,
+                      lng: mountain.lon,
+                      altitude: mountain.ele_gps || Number(mountain.標高) || 0,
+                    }}
+                    label={`${mountain.山名} (${mountain.標高}m)`}
+                  >
+                    {isRecommended ? (
+                      <HeartMarker color={color} />
+                    ) : (
+                      <PinMarker color={color} />
+                    )}
+                  </Marker3D>
+                );
+              })}
 
               {selectedHike && (
                 <Marker3D
@@ -274,9 +383,61 @@ export default function EarthPage() {
                     altitude: selectedHike.summitLocation?.elevation || 0,
                   }}
                   label={selectedHike.title}
-                />
+                >
+                  <PinMarker color="#fcd34d" />
+                </Marker3D>
               )}
             </Map3D>
+          </div>
+        </div>
+
+        {/* Camera Parameters HUD */}
+        <div className="absolute bottom-40 left-6 z-50 pointer-events-auto max-w-xs md:max-w-sm">
+          <div className="bg-black/60 backdrop-blur-md rounded-2xl p-4 border border-white/10 shadow-2xl text-white">
+            <div className="flex items-center justify-between gap-4 mb-2">
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-sans">Camera HUD</span>
+              <button
+                onClick={handleCopyParams}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-white/10 hover:bg-white/20 active:bg-white/30 text-emerald-300 border border-white/10 transition-all font-medium cursor-pointer"
+                title="視点パラメータをコピー"
+              >
+                {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                {copied ? 'コピー完了' : 'パラメータコピー'}
+              </button>
+            </div>
+            
+            <div className="space-y-1 font-mono text-[10px] md:text-xs text-gray-300">
+              {cameraState.center ? (
+                <>
+                  <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                    <span className="text-gray-500">Center Lat:</span>
+                    <span>{cameraState.center.lat.toFixed(6)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                    <span className="text-gray-500">Center Lng:</span>
+                    <span>{cameraState.center.lng.toFixed(6)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                    <span className="text-gray-500">Center Alt:</span>
+                    <span>{Math.round(cameraState.center.altitude)}m</span>
+                  </div>
+                </>
+              ) : (
+                <div className="text-gray-500 italic py-1">Initializing camera...</div>
+              )}
+              <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                <span className="text-gray-500">Heading:</span>
+                <span>{cameraState.heading.toFixed(2)}°</span>
+              </div>
+              <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                <span className="text-gray-500">Tilt:</span>
+                <span>{cameraState.tilt.toFixed(2)}°</span>
+              </div>
+              <div className="flex justify-between py-0.5 gap-4">
+                <span className="text-gray-500">Range:</span>
+                <span>{Math.round(cameraState.range).toLocaleString()}m</span>
+              </div>
+            </div>
           </div>
         </div>
 
