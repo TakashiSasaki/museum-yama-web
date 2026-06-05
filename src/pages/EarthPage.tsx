@@ -246,6 +246,45 @@ export default function EarthPage() {
     }
   }, []);
 
+  const handleResetDefaultView = useCallback(() => {
+    setIsAutoRotate(false);
+    setSelectedHike(null);
+
+    // Cancel any previous timer to avoid state collisions
+    if (flyToTimerRef.current) {
+      clearTimeout(flyToTimerRef.current);
+    }
+
+    const map3d = mapRef.current?.map3d;
+    if (map3d) {
+      const defaultCamera = {
+        center: { lat: 33.63679, lng: 133.049786, altitude: 677 },
+        heading: -67.85,
+        tilt: 59.37,
+        range: 204170,
+      };
+
+      // Use seamless native flying transition if available, otherwise apply instantly
+      if (typeof (map3d as any).flyTo === 'function') {
+        try {
+          (map3d as any).flyTo({
+            endCamera: defaultCamera,
+            durationMillis: 3000,
+          });
+          return;
+        } catch (e) {
+          console.warn('flyTo failed, switching properties instantly:', e);
+        }
+      }
+      
+      // Fallback
+      map3d.center = defaultCamera.center;
+      map3d.range = defaultCamera.range;
+      map3d.tilt = defaultCamera.tilt;
+      map3d.heading = defaultCamera.heading;
+    }
+  }, []);
+
   const toggleMode = () => {
     setMapMode((current) => {
       if (current === 'HYBRID') {
@@ -276,9 +315,13 @@ export default function EarthPage() {
       <div className="flex flex-col h-[100dvh] w-full bg-black overflow-hidden select-none">
         {/* Top UI Layout */}
         <div className="absolute top-0 left-0 right-0 z-50 p-6 pointer-events-none flex justify-between items-start">
-          <div className="bg-black/50 backdrop-blur-md rounded-full p-2 md:p-2.5 pointer-events-auto border border-white/10 shadow-2xl flex items-center justify-center">
-            <img src={yamaIcon} alt="アイコン" className="w-8 h-8 md:w-12 md:h-12 rounded-full" referrerPolicy="no-referrer" />
-          </div>
+          <button
+            onClick={handleResetDefaultView}
+            className="pointer-events-auto bg-black/50 hover:bg-black/70 border border-white/10 hover:border-emerald-400 active:scale-95 transition-all text-white backdrop-blur-md rounded-full p-2 md:p-2.5 shadow-2xl flex items-center justify-center cursor-pointer"
+            title="初期視点に戻す"
+          >
+            <img src={yamaIcon} alt="アイコン" className="w-8 h-8 md:w-12 md:h-12 rounded-full pointer-events-none" referrerPolicy="no-referrer" />
+          </button>
 
           <div className="flex flex-col gap-3">
             <button
