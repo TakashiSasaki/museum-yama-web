@@ -4,6 +4,7 @@ import { APIProvider, Map3D, Marker3D, type Map3DRef } from '@vis.gl/react-googl
 import { Compass, Play, Pause, Layers, Eye, EyeOff, Zap, Copy, Check, X, Heart } from 'lucide-react';
 import { useHikes } from '../hooks/useHikes';
 import yamaIcon from '../assets/yama_icon.svg';
+import { MapNavigationGuide } from '../components/MapNavigationGuide';
 import mountainsData from '../../mountain_all.json';
 
 const API_KEY =
@@ -55,6 +56,34 @@ export default function EarthPage() {
   const mapRef = useRef<Map3DRef>(null);
   
   const [isAutoRotate, setIsAutoRotate] = useState(true);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const guideTimerRef = useRef<any>(null);
+
+  const handleOpenGuide = useCallback(() => {
+    setIsGuideOpen(true);
+    if (guideTimerRef.current) {
+      clearTimeout(guideTimerRef.current);
+    }
+    guideTimerRef.current = setTimeout(() => {
+      setIsGuideOpen(false);
+    }, 20000);
+  }, []);
+
+  const handleCloseGuide = useCallback(() => {
+    setIsGuideOpen(false);
+    if (guideTimerRef.current) {
+      clearTimeout(guideTimerRef.current);
+      guideTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (guideTimerRef.current) {
+        clearTimeout(guideTimerRef.current);
+      }
+    };
+  }, []);
   const [mapMode, setMapMode] = useState<'SATELLITE' | 'HYBRID' | 'ROADMAP'>('SATELLITE');
   const [labelsDisabled, setLabelsDisabled] = useState(true);
   const [scaleMode, setScaleMode] = useState<'100' | '75' | '50' | '33'>('75');
@@ -591,6 +620,16 @@ export default function EarthPage() {
                 {filterRecommended ? 'お勧めコース中' : 'お勧めコース絞り込み'}
               </span>
             </button>
+
+            {/* 操作説明ボタン */}
+            <button
+              onClick={handleOpenGuide}
+              className="pointer-events-auto backdrop-blur-md p-4 rounded-full transition-all border border-white/20 bg-black/50 hover:bg-black/70 hover:border-emerald-400 text-white shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+              title="3Dマップの操作方法を表示する"
+            >
+              <Compass className="w-6 h-6 text-emerald-400" />
+              <span className="hidden md:inline font-medium text-sm md:text-base">操作説明</span>
+            </button>
           </div>
         </div>
 
@@ -909,6 +948,42 @@ export default function EarthPage() {
                     );
                   })
               ) : null}
+            </div>
+          </div>
+        )}
+
+        {/* 操作説明ダイアログ */}
+        {isGuideOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 pointer-events-auto">
+            <div className="relative bg-zinc-900 border border-white/10 rounded-2xl max-w-2xl w-full overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] flex flex-col animate-fade-in">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-black/40">
+                <div className="flex items-center gap-2">
+                  <Compass className="w-5 h-5 text-emerald-400 animate-spin-slow" />
+                  <span className="font-bold text-white text-sm md:text-base">3Dマップの操作方法</span>
+                </div>
+                <button
+                  onClick={handleCloseGuide}
+                  className="text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-1.5 rounded-full cursor-pointer"
+                  title="閉じる"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {/* Body (SVG / CSS Animation Guide) */}
+              <div className="p-4 bg-black/25 overflow-y-auto max-h-[65vh] no-scrollbar">
+                <MapNavigationGuide />
+              </div>
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-white/10 bg-black/40 flex items-center justify-between text-[11px] text-gray-400">
+                <span>※このガイドは20秒後に自動的に閉じます</span>
+                <button
+                  onClick={handleCloseGuide}
+                  className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer"
+                >
+                  閉じる
+                </button>
+              </div>
             </div>
           </div>
         )}
