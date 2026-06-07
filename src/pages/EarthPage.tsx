@@ -346,6 +346,11 @@ export default function EarthPage() {
             endCamera: defaultCamera,
             durationMillis: 3000,
           });
+
+          // Re-enable autorotate after flyover transition ends smoothly
+          flyToTimerRef.current = setTimeout(() => {
+            setIsAutoRotate(true);
+          }, 3200);
           return;
         } catch (e) {
           console.warn('flyTo failed, switching properties instantly:', e);
@@ -357,6 +362,7 @@ export default function EarthPage() {
       map3d.range = defaultCamera.range;
       map3d.tilt = defaultCamera.tilt;
       map3d.heading = defaultCamera.heading;
+      setIsAutoRotate(true);
     }
   }, []);
 

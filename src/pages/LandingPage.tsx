@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Map as MapIcon, ArrowRight, Landmark, ExternalLink } from 'lucide-react';
@@ -25,6 +25,31 @@ export default function LandingPage() {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, [navigate]);
 
+  const pressTimerRef = useRef<any>(null);
+
+  const handlePressStart = useCallback((e: React.PointerEvent) => {
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    pressTimerRef.current = setTimeout(() => {
+      if ('vibrate' in navigator) {
+        try { navigator.vibrate(100); } catch (_) {}
+      }
+      navigate('/earth');
+    }, 5000); // 5 seconds
+  }, [navigate]);
+
+  const handlePressEnd = useCallback(() => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    };
+  }, []);
+
   return (
     <div className="relative min-h-[100dvh] bg-black text-white overflow-hidden flex flex-col">
       {/* Background Image with Overlay */}
@@ -49,9 +74,13 @@ export default function LandingPage() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.5, duration: 1.2, ease: "easeOut" }}
-            className="mb-4 md:mb-6 p-1 rounded-full bg-white/5 backdrop-blur-md border border-white/10"
+            onPointerDown={handlePressStart}
+            onPointerUp={handlePressEnd}
+            onPointerLeave={handlePressEnd}
+            className="mb-4 md:mb-6 p-1 rounded-full bg-white/5 backdrop-blur-md border border-white/10 cursor-pointer active:scale-95 transition-transform"
+            title="5秒長押しで3D表示"
           >
-            <img src={yamaIcon} alt="えひめの山" className="w-12 h-12 md:w-16 md:h-16 rounded-full" referrerPolicy="no-referrer" />
+            <img src={yamaIcon} alt="えひめの山" className="w-12 h-12 md:w-16 md:h-16 rounded-full pointer-events-none" referrerPolicy="no-referrer" />
           </motion.div>
 
           <p className="px-4 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-emerald-500/25 text-emerald-300 font-sans tracking-[0.25em] text-xs md:text-sm uppercase mb-4 md:mb-5 shadow-lg select-none">
@@ -65,7 +94,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-2 md:gap-4 mb-6 md:mb-8 w-full justify-center">
             <div className="flex-1 max-w-[2rem] md:max-w-[5rem] h-[1px] bg-emerald-400/50"></div>
             <h2 className="font-sans text-sm md:text-xl text-emerald-50 tracking-[0.1em] md:tracking-[0.15em] drop-shadow-md font-medium whitespace-nowrap">
-              登山のためのスペシャル情報
+               登山のためのスペシャル情報
             </h2>
             <div className="flex-1 max-w-[2rem] md:max-w-[5rem] h-[1px] bg-emerald-400/50"></div>
           </div>
@@ -82,27 +111,14 @@ export default function LandingPage() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/explore')}
-              className="group relative inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-medium tracking-wider overflow-hidden transition-colors text-sm md:text-base"
+              className="group relative inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-medium tracking-wider overflow-hidden transition-colors text-sm md:text-base cursor-pointer"
             >
               <span className="relative z-10 flex items-center gap-2">
                 <MapIcon className="w-4 h-4 md:w-5 md:h-5" />
-                展示マップを探索する
+                えひめの山一覧
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/earth')}
-              className="group relative inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 rounded-full font-medium tracking-wider transition-colors text-sm md:text-base"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                <MapIcon className="w-4 h-4 md:w-5 md:h-5" />
-                3Dランドスケープ
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </span>
             </motion.button>
           </div>
 
