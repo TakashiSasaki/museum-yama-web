@@ -5,6 +5,7 @@ import { Compass, Play, Pause, Layers, Eye, EyeOff, Zap, Copy, Check, X, Heart }
 import { useHikes } from '../hooks/useHikes';
 import yamaIcon from '../assets/yama_icon.svg';
 import { MapNavigationGuide } from '../components/MapNavigationGuide';
+import { MountainDifficultyExplanation } from '../components/MountainDifficultyExplanation';
 import mountainsData from '../../mountain_all.json';
 
 const API_KEY =
@@ -82,6 +83,9 @@ export default function EarthPage() {
       if (guideTimerRef.current) {
         clearTimeout(guideTimerRef.current);
       }
+      if (mountainTimerRef.current) {
+        clearTimeout(mountainTimerRef.current);
+      }
     };
   }, []);
   const [mapMode, setMapMode] = useState<'SATELLITE' | 'HYBRID' | 'ROADMAP'>('SATELLITE');
@@ -90,6 +94,17 @@ export default function EarthPage() {
   const [fpsLimit, setFpsLimit] = useState<number>(15); // Default to 15 FPS for energy-saving or low-spec Android signage devices
   const [selectedHike, setSelectedHike] = useState<any>(null);
   const [selectedMountain, setSelectedMountain] = useState<any>(null);
+  const [showMountainDetails, setShowMountainDetails] = useState(false);
+  const mountainTimerRef = useRef<any>(null);
+
+  const handleCloseMountainDetails = useCallback(() => {
+    setShowMountainDetails(false);
+    if (mountainTimerRef.current) {
+      clearTimeout(mountainTimerRef.current);
+      mountainTimerRef.current = null;
+    }
+  }, []);
+
   const [filterRecommended, setFilterRecommended] = useState(false);
   const [selectedMunicipality, setSelectedMunicipality] = useState<string | null>(null);
 
@@ -374,6 +389,14 @@ export default function EarthPage() {
     setSelectedMountain(mountain);
     setSelectedHike(null); // Clear selected hike if any
 
+    setShowMountainDetails(true);
+    if (mountainTimerRef.current) {
+      clearTimeout(mountainTimerRef.current);
+    }
+    mountainTimerRef.current = setTimeout(() => {
+      setShowMountainDetails(false);
+    }, 30000);
+
     if (flyToTimerRef.current) {
       clearTimeout(flyToTimerRef.current);
     }
@@ -419,6 +442,11 @@ export default function EarthPage() {
     setIsAutoRotate(false);
     setSelectedHike(null);
     setSelectedMountain(null);
+    setShowMountainDetails(false);
+    if (mountainTimerRef.current) {
+      clearTimeout(mountainTimerRef.current);
+      mountainTimerRef.current = null;
+    }
     setSelectedMunicipality(null);
 
     // Cancel any previous timer to avoid state collisions
@@ -466,6 +494,11 @@ export default function EarthPage() {
     setIsAutoRotate(false);
     setSelectedHike(null);
     setSelectedMountain(null);
+    setShowMountainDetails(false);
+    if (mountainTimerRef.current) {
+      clearTimeout(mountainTimerRef.current);
+      mountainTimerRef.current = null;
+    }
 
     if (flyToTimerRef.current) {
       clearTimeout(flyToTimerRef.current);
@@ -624,7 +657,7 @@ export default function EarthPage() {
             {/* 操作説明ボタン */}
             <button
               onClick={handleOpenGuide}
-              className="pointer-events-auto backdrop-blur-md p-4 rounded-full transition-all border border-white/20 bg-black/50 hover:bg-black/70 hover:border-emerald-400 text-white shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+              className="pointer-events-auto backdrop-blur-md p-4 rounded-full transition-all border border-white/10 bg-black/20 hover:bg-black/40 hover:border-emerald-400/50 text-white shadow-lg flex items-center justify-center gap-2 cursor-pointer"
               title="3Dマップの操作方法を表示する"
             >
               <Compass className="w-6 h-6 text-emerald-400" />
@@ -872,7 +905,7 @@ export default function EarthPage() {
         {/* Bottom Drawer for interactively picking a mountain */}
         {(filterRecommended || selectedMunicipality) && (
           <div className="absolute z-40 pointer-events-auto transition-all duration-300 bottom-0 left-[110px] sm:left-[135px] md:left-[155px] right-0 transform-none">
-            <div className="bg-black/55 backdrop-blur-xl border border-white/10 border-r-0 border-b-0 transition-all duration-300 shadow-2xl rounded-none p-1.5 md:p-2.5 overflow-y-auto max-h-[30vh] md:max-h-[25vh] grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-10 xl:grid-cols-[repeat(16,minmax(0,1fr))] gap-1 w-full no-scrollbar">
+            <div className="bg-black/25 backdrop-blur-md border border-white/10 border-r-0 border-b-0 transition-all duration-300 shadow-2xl rounded-none p-1.5 md:p-2.5 overflow-y-auto max-h-[30vh] md:max-h-[25vh] grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-10 xl:grid-cols-[repeat(16,minmax(0,1fr))] gap-1 w-full no-scrollbar">
               {filterRecommended ? (
                 // Only display recommended mountains when filter is active
                 validMountains
@@ -950,6 +983,15 @@ export default function EarthPage() {
               ) : null}
             </div>
           </div>
+        )}
+
+        {/* 選択した山の難易度説明UI */}
+        {showMountainDetails && selectedMountain && (
+          <MountainDifficultyExplanation
+            mountain={selectedMountain}
+            onClose={handleCloseMountainDetails}
+            isDrawerVisible={!!(filterRecommended || selectedMunicipality)}
+          />
         )}
 
         {/* 操作説明ダイアログ */}
