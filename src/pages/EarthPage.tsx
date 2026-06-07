@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APIProvider, Map3D, Marker3D, type Map3DRef } from '@vis.gl/react-google-maps';
-import { Home, Compass, Play, Pause, Layers, Eye, EyeOff, Zap, Copy, Check } from 'lucide-react';
+import { Compass, Play, Pause, Layers, Eye, EyeOff, Zap, Copy, Check, X } from 'lucide-react';
 import { useHikes } from '../hooks/useHikes';
 import yamaIcon from '../assets/yama_icon.svg';
 import mountainsData from '../../mountain_merged.json';
@@ -57,12 +57,43 @@ export default function EarthPage() {
   const [isAutoRotate, setIsAutoRotate] = useState(true);
   const [mapMode, setMapMode] = useState<'SATELLITE' | 'HYBRID' | 'ROADMAP'>('SATELLITE');
   const [labelsDisabled, setLabelsDisabled] = useState(true);
-  const [isLowResolution, setIsLowResolution] = useState(true);
+  const [scaleMode, setScaleMode] = useState<'100' | '75' | '50' | '33'>('75');
+  const [fpsLimit, setFpsLimit] = useState<number>(15); // Default to 15 FPS for energy-saving or low-spec Android signage devices
   const [selectedHike, setSelectedHike] = useState<any>(null);
 
   // Use refs to avoid stale closures in high-frequency animation loop and clean up timers correctly
   const selectedHikeRef = useRef<any>(null);
   const flyToTimerRef = useRef<any>(null);
+
+  // HUD and Secret 5-second Long-press Logic
+  const [showHud, setShowHud] = useState(false);
+  const pressTimerRef = useRef<any>(null);
+  const isLongPressRef = useRef(false);
+
+  const handlePressStart = useCallback((e: React.PointerEvent) => {
+    isLongPressRef.current = false;
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    pressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      setShowHud(true);
+      if ('vibrate' in navigator) {
+        try { navigator.vibrate(100); } catch (_) {}
+      }
+    }, 5000); // 5 seconds
+  }, []);
+
+  const handlePressEnd = useCallback(() => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    };
+  }, []);
 
   const [cameraState, setCameraState] = useState<any>({
     center: null,
@@ -149,12 +180,44 @@ export default function EarthPage() {
     };
   }, []);
 
+  // Enter fullscreen by default if screen size is 3500x2000 or greater landscape
+  useEffect(() => {
+    const isUltraLandscape = window.innerWidth >= 3500 && window.innerHeight >= 2000 && window.innerWidth > window.innerHeight;
+    if (!isUltraLandscape) return;
+
+    const tryFullscreen = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch((err) => {
+          console.warn('Auto-fullscreen request failed/blocked:', err);
+        });
+      }
+    };
+
+    // Try immediately (might be blocked by browser policy without active user gesture)
+    tryFullscreen();
+
+    // Hook into user gesture events to trigger fullscreen on their first interaction
+    const events = ['click', 'pointerdown', 'keydown', 'touchstart'];
+    const handler = () => {
+      tryFullscreen();
+      // Remove local listeners once triggered
+      events.forEach((ex) => document.removeEventListener(ex, handler));
+    };
+
+    events.forEach((ex) => document.addEventListener(ex, handler, { passive: true }));
+
+    return () => {
+      events.forEach((ex) => document.removeEventListener(ex, handler));
+    };
+  }, []);
+
   // Perform continuous rotation native via DOM property to bypass React virtual DOM diffing completely
   useEffect(() => {
     if (!isAutoRotate) return;
 
     let animationFrameId: number;
     let lastTime = performance.now();
+    let lastRenderTime = performance.now();
     
     // Bypass high-cost DOM getter in loop to eliminate Forced Reflows completely.
     // Sync starting heading once from the map if loaded, defaults to 0.
@@ -163,16 +226,28 @@ export default function EarthPage() {
     const animate = (currentTime: number) => {
       const delta = currentTime - lastTime;
       lastTime = currentTime;
-      
-      const map3d = mapRef.current?.map3d;
-      if (map3d) {
-        // Rotate by 4 degrees per second smoothly
-        const rotationSpeed = 4; 
-        const deltaRotation = (rotationSpeed * delta) / 1000;
-        currentHeading = (currentHeading + deltaRotation) % 360;
 
-        // Write only, never read from DOM - zero reflow overhead!
-        map3d.heading = currentHeading;
+      const elapsedSinceLastRender = currentTime - lastRenderTime;
+      const fpsInterval = 1000 / fpsLimit;
+
+      // If fpsLimit >= 60, don't throttle. Otherwise, match the target frame rate (e.g. 30 FPS, 15 FPS).
+      if (fpsLimit >= 60 || elapsedSinceLastRender >= fpsInterval - 1) {
+        if (fpsLimit < 60) {
+          lastRenderTime = currentTime - (elapsedSinceLastRender % fpsInterval);
+        } else {
+          lastRenderTime = currentTime;
+        }
+
+        const map3d = mapRef.current?.map3d;
+        if (map3d) {
+          // Rotate by 4 degrees per second smoothly
+          const rotationSpeed = 4; 
+          const deltaRotation = (rotationSpeed * delta) / 1000;
+          currentHeading = (currentHeading + deltaRotation) % 360;
+
+          // Write only, never read from DOM - zero reflow overhead!
+          map3d.heading = currentHeading;
+        }
       }
       
       animationFrameId = requestAnimationFrame(animate);
@@ -185,7 +260,7 @@ export default function EarthPage() {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [isAutoRotate]);
+  }, [isAutoRotate, fpsLimit]);
 
   // Synchronize dynamic labels setting directly on raw Map3D element
   // Since vis.gl react wrapper defaultLabelsDisabled only applies on mount
@@ -316,9 +391,19 @@ export default function EarthPage() {
         {/* Top UI Layout */}
         <div className="absolute top-0 left-0 right-0 z-50 p-6 pointer-events-none flex justify-between items-start">
           <button
-            onClick={handleResetDefaultView}
+            onPointerDown={handlePressStart}
+            onPointerUp={handlePressEnd}
+            onPointerLeave={handlePressEnd}
+            onClick={(e) => {
+              if (isLongPressRef.current) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
+              handleResetDefaultView();
+            }}
             className="pointer-events-auto bg-black/50 hover:bg-black/70 border border-white/10 hover:border-emerald-400 active:scale-95 transition-all text-white backdrop-blur-md rounded-full p-2 md:p-2.5 shadow-2xl flex items-center justify-center cursor-pointer"
-            title="初期視点に戻す"
+            title="初期視点に戻す（5秒長押しで設定表示）"
           >
             <img src={yamaIcon} alt="アイコン" className="w-8 h-8 md:w-12 md:h-12 rounded-full pointer-events-none" referrerPolicy="no-referrer" />
           </button>
@@ -351,22 +436,59 @@ export default function EarthPage() {
                 ラベル: {labelsDisabled ? '非表示' : '表示'}
               </span>
             </button>
-            <button
-              onClick={() => setIsLowResolution(!isLowResolution)}
-              className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-4 rounded-full transition-colors border border-white/20 shadow-lg flex items-center justify-center gap-2"
-            >
-              <Zap className={`w-6 h-6 ${isLowResolution ? 'text-amber-400 fill-amber-400' : 'text-white'}`} />
-              <span className="hidden md:inline font-medium">
-                画質: {isLowResolution ? '高速(低画質)' : '標準(高画質)'}
-              </span>
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-4 rounded-full transition-colors border border-white/20 shadow-lg flex items-center justify-center gap-2"
-            >
-              <Home className="w-6 h-6" />
-              <span className="hidden md:inline font-medium">通常版へ</span>
-            </button>
+            {/* パフォーマンス調整パネル */}
+            <div className="pointer-events-auto bg-black/70 backdrop-blur-md text-white rounded-3xl p-4 border border-white/20 shadow-2xl flex flex-col gap-3.5 min-w-[240px]">
+              <div className="flex items-center gap-2 text-amber-400 border-b border-white/10 pb-2">
+                <Zap className="w-5 h-5 fill-amber-400 text-amber-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider font-sans">パフォーマンス調整</span>
+              </div>
+
+              {/* 解像度スケール */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between items-center text-[10px] text-gray-400 font-extrabold">
+                  <span>表示解像度スケール</span>
+                  <span className="text-amber-300">{scaleMode}%</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1 p-0.5 bg-white/5 border border-white/5 rounded-xl">
+                  {(['100', '75', '50', '33'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setScaleMode(mode)}
+                      className={`text-[10px] py-1.5 rounded-lg transition-all font-semibold cursor-pointer ${
+                        scaleMode === mode
+                          ? 'bg-amber-500 text-black shadow-md font-extrabold'
+                          : 'hover:bg-white/5 text-gray-300'
+                      }`}
+                    >
+                      {mode}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 回転更新レート */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between items-center text-[10px] text-gray-400 font-extrabold">
+                  <span>自動回転フレームレート</span>
+                  <span className="text-amber-300">{fpsLimit === 60 ? '標準(60)' : `${fpsLimit} FPS`}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 p-0.5 bg-white/5 border border-white/5 rounded-xl">
+                  {([60, 30, 15] as const).map((fps) => (
+                    <button
+                      key={fps}
+                      onClick={() => setFpsLimit(fps)}
+                      className={`text-[10px] py-1.5 rounded-lg transition-all font-semibold cursor-pointer ${
+                        fpsLimit === fps
+                          ? 'bg-amber-500 text-black shadow-md font-extrabold'
+                          : 'hover:bg-white/5 text-gray-300'
+                      }`}
+                    >
+                      {fps === 60 ? '標準' : `${fps} FPS`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -378,11 +500,17 @@ export default function EarthPage() {
           <div 
             className="absolute transition-all duration-300"
             style={{
-              width: isLowResolution ? '75%' : '100%',
-              height: isLowResolution ? '75%' : '100%',
+              width: scaleMode === '100' ? '100%' : scaleMode === '75' ? '75%' : scaleMode === '50' ? '50%' : '33.3333%',
+              height: scaleMode === '100' ? '100%' : scaleMode === '75' ? '75%' : scaleMode === '50' ? '50%' : '33.3333%',
               top: '50%',
               left: '50%',
-              transform: isLowResolution ? 'translate(-50%, -50%) scale(1.333333)' : 'translate(-50%, -50%) scale(1)',
+              transform: scaleMode === '100' 
+                ? 'translate(-50%, -50%) scale(1)' 
+                : scaleMode === '75' 
+                  ? 'translate(-50%, -50%) scale(1.333333)' 
+                  : scaleMode === '50' 
+                    ? 'translate(-50%, -50%) scale(2)' 
+                    : 'translate(-50%, -50%) scale(3)',
               transformOrigin: 'center center',
             }}
           >
@@ -435,54 +563,65 @@ export default function EarthPage() {
         </div>
 
         {/* Camera Parameters HUD */}
-        <div className="absolute bottom-40 left-6 z-50 pointer-events-auto max-w-xs md:max-w-sm">
-          <div className="bg-black/60 backdrop-blur-md rounded-2xl p-4 border border-white/10 shadow-2xl text-white">
-            <div className="flex items-center justify-between gap-4 mb-2">
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-sans">Camera HUD</span>
-              <button
-                onClick={handleCopyParams}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-white/10 hover:bg-white/20 active:bg-white/30 text-emerald-300 border border-white/10 transition-all font-medium cursor-pointer"
-                title="視点パラメータをコピー"
-              >
-                {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                {copied ? 'コピー完了' : 'パラメータコピー'}
-              </button>
-            </div>
-            
-            <div className="space-y-1 font-mono text-[10px] md:text-xs text-gray-300">
-              {cameraState.center ? (
-                <>
-                  <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
-                    <span className="text-gray-500">Center Lat:</span>
-                    <span>{cameraState.center.lat.toFixed(6)}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
-                    <span className="text-gray-500">Center Lng:</span>
-                    <span>{cameraState.center.lng.toFixed(6)}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
-                    <span className="text-gray-500">Center Alt:</span>
-                    <span>{Math.round(cameraState.center.altitude)}m</span>
-                  </div>
-                </>
-              ) : (
-                <div className="text-gray-500 italic py-1">Initializing camera...</div>
-              )}
-              <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
-                <span className="text-gray-500">Heading:</span>
-                <span>{cameraState.heading.toFixed(2)}°</span>
+        {showHud && (
+          <div className="absolute bottom-40 left-6 z-50 pointer-events-auto max-w-xs md:max-w-sm animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-black/85 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-2xl text-white">
+              <div className="flex items-center justify-between gap-4 mb-3 pb-2 border-b border-white/10">
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-sans">Camera HUD</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={handleCopyParams}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] bg-white/10 hover:bg-white/20 active:bg-white/30 text-emerald-300 border border-white/10 transition-all font-semibold cursor-pointer"
+                    title="視点パラメータをコピー"
+                  >
+                    {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                    {copied ? 'コピー' : 'コピー'}
+                  </button>
+                  <button
+                    onClick={() => setShowHud(false)}
+                    className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white border border-white/10 transition-all cursor-pointer"
+                    title="HUDを閉じる"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
-                <span className="text-gray-500">Tilt:</span>
-                <span>{cameraState.tilt.toFixed(2)}°</span>
-              </div>
-              <div className="flex justify-between py-0.5 gap-4">
-                <span className="text-gray-500">Range:</span>
-                <span>{Math.round(cameraState.range).toLocaleString()}m</span>
+              
+              <div className="space-y-1 font-mono text-[10px] md:text-xs text-gray-300">
+                {cameraState.center ? (
+                  <>
+                    <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                      <span className="text-gray-500">Center Lat:</span>
+                      <span>{cameraState.center.lat.toFixed(6)}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                      <span className="text-gray-500">Center Lng:</span>
+                      <span>{cameraState.center.lng.toFixed(6)}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                      <span className="text-gray-500">Center Alt:</span>
+                      <span>{Math.round(cameraState.center.altitude)}m</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-gray-500 italic py-1">Initializing camera...</div>
+                )}
+                <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                  <span className="text-gray-500">Heading:</span>
+                  <span>{cameraState.heading.toFixed(2)}°</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                  <span className="text-gray-500">Tilt:</span>
+                  <span>{cameraState.tilt.toFixed(2)}°</span>
+                </div>
+                <div className="flex justify-between py-0.5 gap-4">
+                  <span className="text-gray-500">Range:</span>
+                  <span>{Math.round(cameraState.range).toLocaleString()}m</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Bottom Drawer for interactively picking a mountain */}
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-5xl pointer-events-auto">

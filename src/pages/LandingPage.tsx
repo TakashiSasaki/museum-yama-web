@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Map as MapIcon, ArrowRight, Landmark, ExternalLink } from 'lucide-react';
@@ -6,6 +7,23 @@ import yamaIcon from '../assets/yama_icon.svg';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      if (width >= 3500 && height >= 2000 && width > height) {
+        navigate('/earth', { replace: true });
+      }
+    };
+
+    // Run on mount
+    checkScreenSize();
+
+    // Listen for resize changes in case resolution changes dynamically
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, [navigate]);
 
   return (
     <div className="relative min-h-[100dvh] bg-black text-white overflow-hidden flex flex-col">
