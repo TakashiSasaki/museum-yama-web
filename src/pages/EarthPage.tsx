@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APIProvider, Map3D, Marker3D, type Map3DRef } from '@vis.gl/react-google-maps';
-import { Compass, Play, Pause, Layers, Eye, EyeOff, Zap, Copy, Check, X } from 'lucide-react';
+import { Compass, Play, Pause, Layers, Eye, EyeOff, Zap, Copy, Check, X, Heart } from 'lucide-react';
 import { useHikes } from '../hooks/useHikes';
 import yamaIcon from '../assets/yama_icon.svg';
-import mountainsData from '../../mountain_merged.json';
+import mountainsData from '../../mountain_all.json';
 
 const API_KEY =
   process.env.GOOGLE_MAPS_PLATFORM_KEY ||
@@ -60,6 +60,8 @@ export default function EarthPage() {
   const [scaleMode, setScaleMode] = useState<'100' | '75' | '50' | '33'>('75');
   const [fpsLimit, setFpsLimit] = useState<number>(15); // Default to 15 FPS for energy-saving or low-spec Android signage devices
   const [selectedHike, setSelectedHike] = useState<any>(null);
+  const [selectedMountain, setSelectedMountain] = useState<any>(null);
+  const [filterRecommended, setFilterRecommended] = useState(false);
 
   // Use refs to avoid stale closures in high-frequency animation loop and clean up timers correctly
   const selectedHikeRef = useRef<any>(null);
@@ -321,9 +323,56 @@ export default function EarthPage() {
     }
   }, []);
 
+  const handleSelectMountain = useCallback((mountain: any) => {
+    setIsAutoRotate(false);
+    setSelectedMountain(mountain);
+    setSelectedHike(null); // Clear selected hike if any
+
+    if (flyToTimerRef.current) {
+      clearTimeout(flyToTimerRef.current);
+    }
+
+    const map3d = mapRef.current?.map3d;
+    if (map3d) {
+      const lat = mountain.lat;
+      const lng = mountain.lon;
+      const altitude = mountain.ele_gps || Number(mountain.標高) || 0;
+
+      const targetCamera = {
+        center: { lat, lng, altitude },
+        range: 1414,
+        tilt: 45,
+        heading: 0,
+      };
+
+      if (typeof (map3d as any).flyTo === 'function') {
+        try {
+          (map3d as any).flyTo({
+            endCamera: targetCamera,
+            durationMillis: 3000,
+          });
+
+          flyToTimerRef.current = setTimeout(() => {
+            setIsAutoRotate(true);
+          }, 3200);
+          return;
+        } catch (e) {
+          console.warn('flyTo failed, switching properties instantly:', e);
+        }
+      }
+
+      map3d.center = targetCamera.center;
+      map3d.range = targetCamera.range;
+      map3d.tilt = targetCamera.tilt;
+      map3d.heading = targetCamera.heading;
+      setIsAutoRotate(true);
+    }
+  }, []);
+
   const handleResetDefaultView = useCallback(() => {
     setIsAutoRotate(false);
     setSelectedHike(null);
+    setSelectedMountain(null);
 
     // Cancel any previous timer to avoid state collisions
     if (flyToTimerRef.current) {
@@ -366,22 +415,7 @@ export default function EarthPage() {
     }
   }, []);
 
-  const toggleMode = () => {
-    setMapMode((current) => {
-      if (current === 'HYBRID') {
-        setLabelsDisabled(false);
-        return 'ROADMAP';
-      }
-      if (current === 'ROADMAP') {
-        setLabelsDisabled(true);
-        return 'SATELLITE';
-      }
-      setLabelsDisabled(false);
-      return 'HYBRID';
-    });
-  };
-
-  const toggleLabels = () => {
+  const toggleMapInfo = () => {
     const nextVal = !labelsDisabled;
     setLabelsDisabled(nextVal);
     if (nextVal) {
@@ -396,105 +430,84 @@ export default function EarthPage() {
       <div className="flex flex-col h-[100dvh] w-full bg-black overflow-hidden select-none">
         {/* Top UI Layout */}
         <div className="absolute top-0 left-0 right-0 z-50 p-6 pointer-events-none flex justify-between items-start">
-          <button
-            onPointerDown={handlePressStart}
-            onPointerUp={handlePressEnd}
-            onPointerLeave={handlePressEnd}
-            onClick={(e) => {
-              if (isLongPressRef.current) {
-                e.preventDefault();
-                e.stopPropagation();
-                return;
-              }
-              handleResetDefaultView();
-            }}
-            className="pointer-events-auto bg-black/50 hover:bg-black/70 border border-white/10 hover:border-emerald-400 active:scale-95 transition-all text-white backdrop-blur-md rounded-full p-2 md:p-2.5 shadow-2xl flex items-center justify-center cursor-pointer"
-            title="初期視点に戻す（5秒長押しで設定表示）"
-          >
-            <img src={yamaIcon} alt="アイコン" className="w-8 h-8 md:w-12 md:h-12 rounded-full pointer-events-none" referrerPolicy="no-referrer" />
-          </button>
+          {/* Top Left Menu Group */}
+          <div className="flex items-center gap-3">
+            {/* Logo / Reset View Button */}
+            <button
+              onPointerDown={handlePressStart}
+              onPointerUp={handlePressEnd}
+              onPointerLeave={handlePressEnd}
+              onClick={(e) => {
+                if (isLongPressRef.current) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  return;
+                }
+                handleResetDefaultView();
+              }}
+              className="pointer-events-auto bg-black/50 hover:bg-black/70 border border-white/10 hover:border-emerald-400 active:scale-95 transition-all text-white backdrop-blur-md rounded-full w-[50px] h-[50px] md:w-[70px] md:h-[70px] shadow-2xl flex items-center justify-center cursor-pointer flex-shrink-0"
+              title="初期視点に戻す（5秒長押しで設定表示）"
+            >
+              <img src={yamaIcon} alt="アイコン" className="w-8 h-8 md:w-12 md:h-12 rounded-full pointer-events-none" referrerPolicy="no-referrer" />
+            </button>
+
+            {/* Auto Rotate On/Off Button */}
+            <button
+              onClick={() => setIsAutoRotate(!isAutoRotate)}
+              className={`pointer-events-auto transition-all active:scale-95 border rounded-full w-[50px] h-[50px] md:w-[70px] md:h-[70px] shadow-2xl flex items-center justify-center cursor-pointer flex-shrink-0 backdrop-blur-md ${
+                isAutoRotate
+                  ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-400 font-extrabold shadow-[0_0_15px_rgba(52,211,153,0.25)]'
+                  : 'bg-black/50 hover:bg-black/70 border-white/10 text-white'
+              }`}
+              title={isAutoRotate ? '自動回転を停止する' : '自動回転を開始する'}
+            >
+              {isAutoRotate ? (
+                <Pause className="w-5 h-5 md:w-7 md:h-7" />
+              ) : (
+                <Play className="w-5 h-5 md:w-7 md:h-7" />
+              )}
+            </button>
+
+            {/* Map Info On/Off Button */}
+            <button
+              onClick={toggleMapInfo}
+              className={`pointer-events-auto transition-all active:scale-95 border rounded-full w-[50px] h-[50px] md:w-[70px] md:h-[70px] shadow-2xl flex items-center justify-center cursor-pointer flex-shrink-0 backdrop-blur-md ${
+                !labelsDisabled
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                  : 'bg-black/50 hover:bg-black/70 border-white/10 text-white'
+              }`}
+              title={!labelsDisabled ? '地図情報を非表示' : '地図情報を表示'}
+            >
+              {!labelsDisabled ? (
+                <Eye className="w-5 h-5 md:w-7 md:h-7 text-amber-400" />
+              ) : (
+                <EyeOff className="w-5 h-5 md:w-7 md:h-7 text-gray-400" />
+              )}
+            </button>
+          </div>
 
           <div className="flex flex-col gap-3">
             <button
-              onClick={() => setIsAutoRotate(!isAutoRotate)}
-              className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-4 rounded-full transition-colors border border-white/20 shadow-lg flex items-center justify-center gap-2"
+              onClick={() => {
+                const nextVal = !filterRecommended;
+                setFilterRecommended(nextVal);
+                if (nextVal) {
+                  setSelectedHike(null);
+                } else {
+                  setSelectedMountain(null);
+                }
+              }}
+              className={`pointer-events-auto backdrop-blur-md p-4 rounded-full transition-all border shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
+                filterRecommended
+                  ? 'bg-rose-500/80 hover:bg-rose-500 text-white border-rose-400 font-extrabold shadow-[0_0_15px_rgba(244,63,94,0.4)] animate-pulse'
+                  : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+              }`}
             >
-              {isAutoRotate ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+              <Heart className={`w-6 h-6 ${filterRecommended ? 'fill-white' : ''}`} />
               <span className="hidden md:inline font-medium">
-                {isAutoRotate ? '回転停止' : '自動回転'}
+                {filterRecommended ? 'お勧めコース中' : 'お勧めコース絞り込み'}
               </span>
             </button>
-            <button
-              onClick={toggleMode}
-              className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-4 rounded-full transition-colors border border-white/20 shadow-lg flex items-center justify-center gap-2"
-            >
-              <Layers className="w-6 h-6" />
-              <span className="hidden md:inline font-medium">
-                マップ: {mapMode === 'HYBRID' ? '地形+ラベル' : mapMode === 'ROADMAP' ? '地図' : '地形のみ'}
-              </span>
-            </button>
-            <button
-              onClick={toggleLabels}
-              className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-4 rounded-full transition-colors border border-white/20 shadow-lg flex items-center justify-center gap-2"
-            >
-              {labelsDisabled ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
-              <span className="hidden md:inline font-medium">
-                ラベル: {labelsDisabled ? '非表示' : '表示'}
-              </span>
-            </button>
-            {/* パフォーマンス調整パネル */}
-            <div className="pointer-events-auto bg-black/70 backdrop-blur-md text-white rounded-3xl p-4 border border-white/20 shadow-2xl flex flex-col gap-3.5 min-w-[240px]">
-              <div className="flex items-center gap-2 text-amber-400 border-b border-white/10 pb-2">
-                <Zap className="w-5 h-5 fill-amber-400 text-amber-400" />
-                <span className="text-[11px] font-bold uppercase tracking-wider font-sans">パフォーマンス調整</span>
-              </div>
-
-              {/* 解像度スケール */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center text-[10px] text-gray-400 font-extrabold">
-                  <span>表示解像度スケール</span>
-                  <span className="text-amber-300">{scaleMode}%</span>
-                </div>
-                <div className="grid grid-cols-4 gap-1 p-0.5 bg-white/5 border border-white/5 rounded-xl">
-                  {(['100', '75', '50', '33'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setScaleMode(mode)}
-                      className={`text-[10px] py-1.5 rounded-lg transition-all font-semibold cursor-pointer ${
-                        scaleMode === mode
-                          ? 'bg-amber-500 text-black shadow-md font-extrabold'
-                          : 'hover:bg-white/5 text-gray-300'
-                      }`}
-                    >
-                      {mode}%
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 回転更新レート */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center text-[10px] text-gray-400 font-extrabold">
-                  <span>自動回転フレームレート</span>
-                  <span className="text-amber-300">{fpsLimit === 60 ? '標準(60)' : `${fpsLimit} FPS`}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1 p-0.5 bg-white/5 border border-white/5 rounded-xl">
-                  {([60, 30, 15] as const).map((fps) => (
-                    <button
-                      key={fps}
-                      onClick={() => setFpsLimit(fps)}
-                      className={`text-[10px] py-1.5 rounded-lg transition-all font-semibold cursor-pointer ${
-                        fpsLimit === fps
-                          ? 'bg-amber-500 text-black shadow-md font-extrabold'
-                          : 'hover:bg-white/5 text-gray-300'
-                      }`}
-                    >
-                      {fps === 60 ? '標準' : `${fps} FPS`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -530,9 +543,13 @@ export default function EarthPage() {
               defaultLabelsDisabled={labelsDisabled}
             >
               {/* Show 3D Pin with name and elevation for all valid mountains in Ehime */}
-              {validMountains.map((mountain) => {
+              {(filterRecommended
+                ? validMountains.filter((m) => m.エントリーコースお勧め山 === true)
+                : validMountains
+              ).map((mountain) => {
                 const color = getDifficultyColor(mountain.難易度ランク);
                 const isRecommended = mountain.エントリーコースお勧め山 === true;
+                const isSelected = selectedMountain?.No === mountain.No;
                 return (
                   <Marker3D
                     key={`mountain-${mountain.No}`}
@@ -541,12 +558,12 @@ export default function EarthPage() {
                       lng: mountain.lon,
                       altitude: mountain.ele_gps || Number(mountain.標高) || 0,
                     }}
-                    label={`${mountain.山名} (${mountain.標高}m)`}
+                    label={`${mountain.山名} (${mountain.標高}m)${isSelected ? ' ★' : ''}`}
                   >
                     {isRecommended ? (
-                      <HeartMarker color={color} />
+                      <HeartMarker color={isSelected ? '#ef4444' : color} />
                     ) : (
-                      <PinMarker color={color} />
+                      <PinMarker color={isSelected ? '#fcd34d' : color} />
                     )}
                   </Marker3D>
                 );
@@ -568,12 +585,17 @@ export default function EarthPage() {
           </div>
         </div>
 
-        {/* Camera Parameters HUD */}
+        {/* Unified Settings & Diagnostics HUD */}
         {showHud && (
-          <div className="absolute bottom-40 left-6 z-50 pointer-events-auto max-w-xs md:max-w-sm animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-black/85 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-2xl text-white">
-              <div className="flex items-center justify-between gap-4 mb-3 pb-2 border-b border-white/10">
-                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-sans">Camera HUD</span>
+          <div className="absolute bottom-48 left-6 z-50 pointer-events-auto max-w-xs md:max-w-sm w-[90vw] sm:w-auto animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-black/90 backdrop-blur-lg rounded-2xl p-4 border border-white/20 shadow-2xl text-white flex flex-col gap-3.5">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between gap-4 pb-2 border-b border-white/10">
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-wider font-sans">設定 & 診断 (Long Press)</span>
+                </div>
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={handleCopyParams}
@@ -581,77 +603,180 @@ export default function EarthPage() {
                     title="視点パラメータをコピー"
                   >
                     {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
-                    {copied ? 'コピー' : 'コピー'}
+                    <span>{copied ? 'コピー済' : 'コピー'}</span>
                   </button>
                   <button
                     onClick={() => setShowHud(false)}
                     className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white border border-white/10 transition-all cursor-pointer"
-                    title="HUDを閉じる"
+                    title="閉じる"
                   >
                     <X size={12} />
                   </button>
                 </div>
               </div>
-              
-              <div className="space-y-1 font-mono text-[10px] md:text-xs text-gray-300">
-                {cameraState.center ? (
-                  <>
-                    <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
-                      <span className="text-gray-500">Center Lat:</span>
-                      <span>{cameraState.center.lat.toFixed(6)}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
-                      <span className="text-gray-500">Center Lng:</span>
-                      <span>{cameraState.center.lng.toFixed(6)}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
-                      <span className="text-gray-500">Center Alt:</span>
-                      <span>{Math.round(cameraState.center.altitude)}m</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-gray-500 italic py-1">Initializing camera...</div>
-                )}
-                <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
-                  <span className="text-gray-500">Heading:</span>
-                  <span>{cameraState.heading.toFixed(2)}°</span>
+
+              {/* Section 1: パフォーマンス調整 */}
+              <div className="flex flex-col gap-2.5 pb-2.5 border-b border-white/10 text-left">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">パフォーマンス調整</span>
+                
+                {/* Resolution scale */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center text-[10px] text-gray-400 font-extrabold">
+                    <span>表示解像度スケール</span>
+                    <span className="text-amber-300">{scaleMode}%</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1 p-0.5 bg-white/5 border border-white/5 rounded-xl">
+                    {(['100', '75', '50', '33'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => setScaleMode(mode)}
+                        className={`text-[10px] py-1 rounded-lg transition-all font-semibold cursor-pointer ${
+                          scaleMode === mode
+                            ? 'bg-amber-500 text-black shadow-md font-extrabold'
+                            : 'hover:bg-white/5 text-gray-300'
+                        }`}
+                      >
+                        {mode}%
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
-                  <span className="text-gray-500">Tilt:</span>
-                  <span>{cameraState.tilt.toFixed(2)}°</span>
-                </div>
-                <div className="flex justify-between py-0.5 gap-4">
-                  <span className="text-gray-500">Range:</span>
-                  <span>{Math.round(cameraState.range).toLocaleString()}m</span>
+
+                {/* Automation FPS limit */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center text-[10px] text-gray-400 font-extrabold">
+                    <span>自動回転フレームレート</span>
+                    <span className="text-amber-300">{fpsLimit === 60 ? '標準(60)' : `${fpsLimit} FPS`}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 p-0.5 bg-white/5 border border-white/5 rounded-xl">
+                    {([60, 30, 15] as const).map((fps) => (
+                      <button
+                        key={fps}
+                        onClick={() => setFpsLimit(fps)}
+                        className={`text-[10px] py-1 rounded-lg transition-all font-semibold cursor-pointer ${
+                          fpsLimit === fps
+                            ? 'bg-amber-500 text-black shadow-md font-extrabold'
+                            : 'hover:bg-white/5 text-gray-300'
+                        }`}
+                      >
+                        {fps === 60 ? '標準' : `${fps} FPS`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
+
+              {/* Section 2: カメラパラメータ */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">カメラパラメータ</span>
+                <div className="space-y-1 font-mono text-[10px] text-gray-300">
+                  {cameraState.center ? (
+                    <>
+                      <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                        <span className="text-gray-500">Center Lat:</span>
+                        <span>{cameraState.center.lat.toFixed(6)}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                        <span className="text-gray-500">Center Lng:</span>
+                        <span>{cameraState.center.lng.toFixed(6)}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                        <span className="text-gray-500">Center Alt:</span>
+                        <span>{Math.round(cameraState.center.altitude)}m</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-gray-500 italic py-1">Initializing camera...</div>
+                  )}
+                  <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                    <span className="text-gray-500">Heading:</span>
+                    <span>{cameraState.heading.toFixed(2)}°</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 py-0.5 gap-4">
+                    <span className="text-gray-500">Tilt:</span>
+                    <span>{cameraState.tilt.toFixed(2)}°</span>
+                  </div>
+                  <div className="flex justify-between py-0.5 gap-4">
+                    <span className="text-gray-500">Range:</span>
+                    <span>{Math.round(cameraState.range).toLocaleString()}m</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
 
         {/* Bottom Drawer for interactively picking a mountain */}
-        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-5xl pointer-events-auto">
-          <div className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl p-4 overflow-x-auto flex gap-4 no-scrollbar shadow-2xl">
-            {!loading && hikes.map((hike) => {
-              const isSelected = selectedHike?.id === hike.id;
-              return (
-                <button
-                  key={hike.id}
-                  onClick={() => handleSelectHike(hike)}
-                  className={`flex-shrink-0 text-white rounded-xl p-4 text-left border transition-all min-w-[200px] flex flex-col gap-2 ${
-                    isSelected
-                      ? 'bg-emerald-500/25 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.3)]'
-                      : 'bg-white/10 hover:bg-white/20 border-white/10'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <Compass size={18} />
-                    <span className="font-semibold text-white text-lg">{hike.title}</span>
-                  </div>
-                  <span className="text-sm text-gray-300">距離 {hike.distanceKm} km</span>
-                </button>
-              );
-            })}
+        <div className={`absolute z-50 pointer-events-auto transition-all duration-300 ${
+          filterRecommended 
+            ? 'bottom-0 left-0 right-0 w-full max-w-none transform-none' 
+            : 'bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl'
+        }`}>
+          <div className={`bg-black/55 backdrop-blur-xl border border-white/10 transition-all duration-300 shadow-2xl ${
+            filterRecommended
+              ? 'rounded-none border-x-0 border-b-0 p-1.5 md:p-2.5 overflow-x-hidden grid grid-cols-8 sm:grid-cols-10 md:grid-cols-[repeat(15,minmax(0,1fr))] gap-1 w-full'
+              : 'rounded-2xl p-4 overflow-x-auto flex gap-4 no-scrollbar'
+          }`}>
+            {filterRecommended ? (
+              // Only display recommended mountains when filter is active
+              validMountains
+                .filter((m) => m.エントリーコースお勧め山 === true)
+                .map((mountain) => {
+                  const isSelected = selectedMountain?.No === mountain.No;
+                  const color = getDifficultyColor(mountain.難易度ランク);
+                  return (
+                    <button
+                      key={`pickup-${mountain.No}`}
+                      onClick={() => handleSelectMountain(mountain)}
+                      title={`${mountain.山名} (${mountain.標高}m) - ${mountain.市町村}`}
+                      className={`w-full text-white rounded-md p-1 md:p-1.5 text-center border transition-all flex flex-col justify-stretch gap-1 cursor-pointer ${
+                        isSelected
+                          ? 'bg-rose-500/35 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.45)] font-extrabold scale-[1.02]'
+                          : 'bg-white/5 hover:bg-white/10 border-white/10'
+                      }`}
+                    >
+                      {/* Top Difficulty Accent Line */}
+                      <div className="w-full h-1 rounded-full mb-0.5 opacity-90" style={{ backgroundColor: color }} />
+                      
+                      <div className="flex flex-col items-center w-full min-w-0 flex-grow justify-center">
+                        <span className="font-bold text-[8px] sm:text-[10px] md:text-[11px] lg:text-xs text-white truncate w-full block">
+                          {mountain.山名}
+                        </span>
+                        <span className="text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px] text-gray-400 truncate w-full block">
+                          {mountain.標高}m
+                        </span>
+                      </div>
+                      
+                      <span className="hidden sm:inline text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 truncate w-full block">
+                        {mountain.市町村}
+                      </span>
+                    </button>
+                  );
+                })
+            ) : (
+              // Normal hikes carousel when filter is not active
+              !loading && hikes.map((hike) => {
+                const isSelected = selectedHike?.id === hike.id;
+                return (
+                  <button
+                    key={hike.id}
+                    onClick={() => handleSelectHike(hike)}
+                    className={`flex-shrink-0 text-white rounded-xl p-4 text-left border transition-all min-w-[200px] flex flex-col gap-2 cursor-pointer ${
+                      isSelected
+                        ? 'bg-emerald-500/25 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.3)]'
+                        : 'bg-white/10 hover:bg-white/20 border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <Compass size={18} />
+                      <span className="font-semibold text-white text-lg">{hike.title}</span>
+                    </div>
+                    <span className="text-sm text-gray-300">距離 {hike.distanceKm} km</span>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Map as MapIcon, ArrowRight, Landmark, ExternalLink } from 'lucide-react';
+import { Map as MapIcon, ArrowRight, Landmark, ExternalLink, Download } from 'lucide-react';
 import heroBg from '../assets/background_new.jpg';
 import yamaIcon from '../assets/yama_icon.svg';
 
@@ -120,6 +120,19 @@ export default function LandingPage() {
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </motion.button>
+
+            <motion.a
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              href="https://github.com/TakashiSasaki/museum-yama-data/raw/refs/heads/museum-yama-data/site/assets/ehime-yama-2026.xlsx"
+              download="ehime-yama-2026.xlsx"
+              className="group relative inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 rounded-full font-medium tracking-wider transition-colors text-sm md:text-base cursor-pointer"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                <Download className="w-4 h-4 md:w-5 md:h-5 text-emerald-400 animate-pulse" />
+                えひめの山 （Excel形式）
+              </span>
+            </motion.a>
           </div>
 
           <motion.a
