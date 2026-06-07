@@ -62,6 +62,23 @@ export default function EarthPage() {
   const [selectedHike, setSelectedHike] = useState<any>(null);
   const [selectedMountain, setSelectedMountain] = useState<any>(null);
   const [filterRecommended, setFilterRecommended] = useState(false);
+  const [selectedMunicipality, setSelectedMunicipality] = useState<string | null>(null);
+
+  // Compute unique municipalities sorted alphabetically
+  const uniqueMunicipalities = React.useMemo(() => {
+    return Array.from(new Set(validMountains.map(m => m.市町村).filter(Boolean))).sort();
+  }, []);
+
+  // Compute count of mountains in each municipality
+  const muniCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    validMountains.forEach(m => {
+      if (m.市町村) {
+        counts[m.市町村] = (counts[m.市町村] || 0) + 1;
+      }
+    });
+    return counts;
+  }, []);
 
   // Use refs to avoid stale closures in high-frequency animation loop and clean up timers correctly
   const selectedHikeRef = useRef<any>(null);
@@ -373,6 +390,7 @@ export default function EarthPage() {
     setIsAutoRotate(false);
     setSelectedHike(null);
     setSelectedMountain(null);
+    setSelectedMunicipality(null);
 
     // Cancel any previous timer to avoid state collisions
     if (flyToTimerRef.current) {
@@ -415,6 +433,68 @@ export default function EarthPage() {
     }
   }, []);
 
+  const handleSelectMunicipality = useCallback((muni: string | null) => {
+    setIsAutoRotate(false);
+    setSelectedHike(null);
+    setSelectedMountain(null);
+
+    if (flyToTimerRef.current) {
+      clearTimeout(flyToTimerRef.current);
+    }
+
+    if (muni === selectedMunicipality) {
+      setSelectedMunicipality(null);
+      handleResetDefaultView();
+      return;
+    }
+
+    setSelectedMunicipality(muni);
+
+    if (muni) {
+      setFilterRecommended(false);
+      const muniMountains = validMountains.filter((m) => m.市町村 === muni);
+      if (muniMountains.length > 0) {
+        const lats = muniMountains.map((m) => m.lat);
+        const lons = muniMountains.map((m) => m.lon);
+        const avgLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+        const avgLon = lons.reduce((a, b) => a + b, 0) / lons.length;
+        const maxEle = Math.max(...muniMountains.map((m) => m.ele_gps || Number(m.標高) || 0));
+
+        const targetCamera = {
+          center: { lat: avgLat, lng: avgLon, altitude: maxEle },
+          range: 30000,
+          tilt: 45,
+          heading: 0,
+        };
+
+        const map3d = mapRef.current?.map3d;
+        if (map3d) {
+          if (typeof (map3d as any).flyTo === 'function') {
+            try {
+              (map3d as any).flyTo({
+                endCamera: targetCamera,
+                durationMillis: 2500,
+              });
+              flyToTimerRef.current = setTimeout(() => {
+                setIsAutoRotate(true);
+              }, 2700);
+              return;
+            } catch (e) {
+              console.warn('flyTo failed:', e);
+            }
+          }
+          map3d.center = targetCamera.center;
+          map3d.range = targetCamera.range;
+          map3d.tilt = targetCamera.tilt;
+          map3d.heading = targetCamera.heading;
+          setIsAutoRotate(true);
+        }
+      }
+    } else {
+      handleResetDefaultView();
+    }
+  }, [handleResetDefaultView, selectedMunicipality]);
+
   const toggleMapInfo = () => {
     const nextVal = !labelsDisabled;
     setLabelsDisabled(nextVal);
@@ -430,60 +510,63 @@ export default function EarthPage() {
       <div className="flex flex-col h-[100dvh] w-full bg-black overflow-hidden select-none">
         {/* Top UI Layout */}
         <div className="absolute top-0 left-0 right-0 z-50 p-6 pointer-events-none flex justify-between items-start">
-          {/* Top Left Menu Group */}
-          <div className="flex items-center gap-3">
-            {/* Logo / Reset View Button */}
-            <button
-              onPointerDown={handlePressStart}
-              onPointerUp={handlePressEnd}
-              onPointerLeave={handlePressEnd}
-              onClick={(e) => {
-                if (isLongPressRef.current) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  return;
-                }
-                handleResetDefaultView();
-              }}
-              className="pointer-events-auto bg-black/50 hover:bg-black/70 border border-white/10 hover:border-emerald-400 active:scale-95 transition-all text-white backdrop-blur-md rounded-full w-[50px] h-[50px] md:w-[70px] md:h-[70px] shadow-2xl flex items-center justify-center cursor-pointer flex-shrink-0"
-              title="初期視点に戻す（5秒長押しで設定表示）"
-            >
-              <img src={yamaIcon} alt="アイコン" className="w-8 h-8 md:w-12 md:h-12 rounded-full pointer-events-none" referrerPolicy="no-referrer" />
-            </button>
+          {/* Top Left Menu Column */}
+          <div className="flex flex-col items-start gap-3">
+            {/* Top Left Menu Group */}
+            <div className="flex items-center gap-3">
+              {/* Logo / Reset View Button */}
+              <button
+                onPointerDown={handlePressStart}
+                onPointerUp={handlePressEnd}
+                onPointerLeave={handlePressEnd}
+                onClick={(e) => {
+                  if (isLongPressRef.current) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                  }
+                  handleResetDefaultView();
+                }}
+                className="pointer-events-auto bg-black/50 hover:bg-black/70 border border-white/10 hover:border-emerald-400 active:scale-95 transition-all text-white backdrop-blur-md rounded-full w-[50px] h-[50px] md:w-[70px] md:h-[70px] shadow-2xl flex items-center justify-center cursor-pointer flex-shrink-0"
+                title="初期視点に戻す（5秒長押しで設定表示）"
+              >
+                <img src={yamaIcon} alt="アイコン" className="w-8 h-8 md:w-12 md:h-12 rounded-full pointer-events-none" referrerPolicy="no-referrer" />
+              </button>
 
-            {/* Auto Rotate On/Off Button */}
-            <button
-              onClick={() => setIsAutoRotate(!isAutoRotate)}
-              className={`pointer-events-auto transition-all active:scale-95 border rounded-full w-[50px] h-[50px] md:w-[70px] md:h-[70px] shadow-2xl flex items-center justify-center cursor-pointer flex-shrink-0 backdrop-blur-md ${
-                isAutoRotate
-                  ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-400 font-extrabold shadow-[0_0_15px_rgba(52,211,153,0.25)]'
-                  : 'bg-black/50 hover:bg-black/70 border-white/10 text-white'
-              }`}
-              title={isAutoRotate ? '自動回転を停止する' : '自動回転を開始する'}
-            >
-              {isAutoRotate ? (
-                <Pause className="w-5 h-5 md:w-7 md:h-7" />
-              ) : (
-                <Play className="w-5 h-5 md:w-7 md:h-7" />
-              )}
-            </button>
+              {/* Auto Rotate On/Off Button */}
+              <button
+                onClick={() => setIsAutoRotate(!isAutoRotate)}
+                className={`pointer-events-auto transition-all active:scale-95 border rounded-full w-[50px] h-[50px] md:w-[70px] md:h-[70px] shadow-2xl flex items-center justify-center cursor-pointer flex-shrink-0 backdrop-blur-md ${
+                  isAutoRotate
+                    ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-400 font-extrabold shadow-[0_0_15px_rgba(52,211,153,0.25)]'
+                    : 'bg-black/50 hover:bg-black/70 border-white/10 text-white'
+                }`}
+                title={isAutoRotate ? '自動回転を停止する' : '自動回転を開始する'}
+              >
+                {isAutoRotate ? (
+                  <Pause className="w-5 h-5 md:w-7 md:h-7" />
+                ) : (
+                  <Play className="w-5 h-5 md:w-7 md:h-7" />
+                )}
+              </button>
 
-            {/* Map Info On/Off Button */}
-            <button
-              onClick={toggleMapInfo}
-              className={`pointer-events-auto transition-all active:scale-95 border rounded-full w-[50px] h-[50px] md:w-[70px] md:h-[70px] shadow-2xl flex items-center justify-center cursor-pointer flex-shrink-0 backdrop-blur-md ${
-                !labelsDisabled
-                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.25)]'
-                  : 'bg-black/50 hover:bg-black/70 border-white/10 text-white'
-              }`}
-              title={!labelsDisabled ? '地図情報を非表示' : '地図情報を表示'}
-            >
-              {!labelsDisabled ? (
-                <Eye className="w-5 h-5 md:w-7 md:h-7 text-amber-400" />
-              ) : (
-                <EyeOff className="w-5 h-5 md:w-7 md:h-7 text-gray-400" />
-              )}
-            </button>
+              {/* Map Info On/Off Button */}
+              <button
+                onClick={toggleMapInfo}
+                className={`pointer-events-auto transition-all active:scale-95 border rounded-full w-[50px] h-[50px] md:w-[70px] md:h-[70px] shadow-2xl flex items-center justify-center cursor-pointer flex-shrink-0 backdrop-blur-md ${
+                  !labelsDisabled
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                    : 'bg-black/50 hover:bg-black/70 border-white/10 text-white'
+                }`}
+                title={!labelsDisabled ? '地図情報を非表示' : '地図情報を表示'}
+              >
+                {!labelsDisabled ? (
+                  <Eye className="w-5 h-5 md:w-7 md:h-7 text-amber-400" />
+                ) : (
+                  <EyeOff className="w-5 h-5 md:w-7 md:h-7 text-gray-400" />
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -508,6 +591,44 @@ export default function EarthPage() {
                 {filterRecommended ? 'お勧めコース中' : 'お勧めコース絞り込み'}
               </span>
             </button>
+          </div>
+        </div>
+
+        {/* Municipality & Island Sidebar Panel */}
+        <div className="pointer-events-auto flex flex-col bg-black/25 border-t border-r border-white/10 backdrop-blur-md rounded-tr-2xl shadow-[5px_0_30px_rgba(0,0,0,0.4)] transition-all duration-300 absolute left-0 z-40 w-[110px] sm:w-[135px] md:w-[155px] top-[84px] md:top-[114px] bottom-0">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-1 sm:p-1.5 flex flex-col gap-1">
+            <span className="text-[9px] md:text-[10px] font-extrabold text-amber-400 uppercase tracking-widest text-center py-1 border-b border-white/10 mb-1 w-full block">
+              市町村・島
+            </span>
+            <div className="grid grid-cols-2 gap-1 w-full">
+              <button
+                onClick={() => handleSelectMunicipality(null)}
+                className={`col-span-2 text-[9px] sm:text-[10px] md:text-xs py-1.5 px-1 rounded-md text-center font-bold tracking-tighter transition-all truncate cursor-pointer ${
+                  selectedMunicipality === null
+                    ? 'bg-amber-500 text-black font-extrabold shadow-md'
+                    : 'bg-white/5 hover:bg-white/10 text-gray-300'
+                }`}
+              >
+                すべて
+              </button>
+              {uniqueMunicipalities.map((muni) => {
+                const isSelected = selectedMunicipality === muni;
+                return (
+                  <button
+                    key={`muni-${muni}`}
+                    onClick={() => handleSelectMunicipality(muni)}
+                    className={`text-[8px] sm:text-[9.5px] md:text-[10.5px] py-2 px-0.5 rounded-md text-center font-bold tracking-tighter transition-all truncate cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-500 text-black font-extrabold shadow-md'
+                        : 'bg-white/5 hover:bg-white/10 text-gray-300'
+                    }`}
+                    title={muni}
+                  >
+                    {muni}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -545,7 +666,9 @@ export default function EarthPage() {
               {/* Show 3D Pin with name and elevation for all valid mountains in Ehime */}
               {(filterRecommended
                 ? validMountains.filter((m) => m.エントリーコースお勧め山 === true)
-                : validMountains
+                : selectedMunicipality
+                  ? validMountains.filter((m) => m.市町村 === selectedMunicipality)
+                  : validMountains
               ).map((mountain) => {
                 const color = getDifficultyColor(mountain.難易度ランク);
                 const isRecommended = mountain.エントリーコースお勧め山 === true;
@@ -708,77 +831,87 @@ export default function EarthPage() {
         )}
 
         {/* Bottom Drawer for interactively picking a mountain */}
-        <div className={`absolute z-50 pointer-events-auto transition-all duration-300 ${
-          filterRecommended 
-            ? 'bottom-0 left-0 right-0 w-full max-w-none transform-none' 
-            : 'bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl'
-        }`}>
-          <div className={`bg-black/55 backdrop-blur-xl border border-white/10 transition-all duration-300 shadow-2xl ${
-            filterRecommended
-              ? 'rounded-none border-x-0 border-b-0 p-1.5 md:p-2.5 overflow-x-hidden grid grid-cols-8 sm:grid-cols-10 md:grid-cols-[repeat(15,minmax(0,1fr))] gap-1 w-full'
-              : 'rounded-2xl p-4 overflow-x-auto flex gap-4 no-scrollbar'
-          }`}>
-            {filterRecommended ? (
-              // Only display recommended mountains when filter is active
-              validMountains
-                .filter((m) => m.エントリーコースお勧め山 === true)
-                .map((mountain) => {
-                  const isSelected = selectedMountain?.No === mountain.No;
-                  const color = getDifficultyColor(mountain.難易度ランク);
-                  return (
-                    <button
-                      key={`pickup-${mountain.No}`}
-                      onClick={() => handleSelectMountain(mountain)}
-                      title={`${mountain.山名} (${mountain.標高}m) - ${mountain.市町村}`}
-                      className={`w-full text-white rounded-md p-1 md:p-1.5 text-center border transition-all flex flex-col justify-stretch gap-1 cursor-pointer ${
-                        isSelected
-                          ? 'bg-rose-500/35 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.45)] font-extrabold scale-[1.02]'
-                          : 'bg-white/5 hover:bg-white/10 border-white/10'
-                      }`}
-                    >
-                      {/* Top Difficulty Accent Line */}
-                      <div className="w-full h-1 rounded-full mb-0.5 opacity-90" style={{ backgroundColor: color }} />
-                      
-                      <div className="flex flex-col items-center w-full min-w-0 flex-grow justify-center">
-                        <span className="font-bold text-[8px] sm:text-[10px] md:text-[11px] lg:text-xs text-white truncate w-full block">
-                          {mountain.山名}
+        {(filterRecommended || selectedMunicipality) && (
+          <div className="absolute z-40 pointer-events-auto transition-all duration-300 bottom-0 left-[110px] sm:left-[135px] md:left-[155px] right-0 transform-none">
+            <div className="bg-black/55 backdrop-blur-xl border border-white/10 border-r-0 border-b-0 transition-all duration-300 shadow-2xl rounded-none p-1.5 md:p-2.5 overflow-y-auto max-h-[30vh] md:max-h-[25vh] grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-10 xl:grid-cols-[repeat(16,minmax(0,1fr))] gap-1 w-full no-scrollbar">
+              {filterRecommended ? (
+                // Only display recommended mountains when filter is active
+                validMountains
+                  .filter((m) => m.エントリーコースお勧め山 === true)
+                  .map((mountain) => {
+                    const isSelected = selectedMountain?.No === mountain.No;
+                    const color = getDifficultyColor(mountain.難易度ランク);
+                    return (
+                      <button
+                        key={`pickup-${mountain.No}`}
+                        onClick={() => handleSelectMountain(mountain)}
+                        title={`${mountain.山名} (${mountain.標高}m) - ${mountain.市町村}`}
+                        className={`w-full text-white rounded-md p-1 md:p-1.5 text-center border transition-all flex flex-col justify-stretch gap-1 cursor-pointer ${
+                          isSelected
+                            ? 'bg-rose-500/35 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.45)] font-extrabold scale-[1.02]'
+                            : 'bg-white/5 hover:bg-white/10 border-white/10'
+                        }`}
+                      >
+                        {/* Top Difficulty Accent Line */}
+                        <div className="w-full h-1 rounded-full mb-0.5 opacity-90" style={{ backgroundColor: color }} />
+                        
+                        <div className="flex flex-col items-center w-full min-w-0 flex-grow justify-center">
+                          <span className="font-bold text-[8px] sm:text-[10px] md:text-[11px] lg:text-xs text-white truncate w-full flex items-center justify-center gap-0.5">
+                            {mountain.エントリーコースお勧め山 === true && (
+                              <Heart className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-rose-500 fill-rose-500 flex-shrink-0" />
+                            )}
+                            <span className="truncate">{mountain.山名}</span>
+                          </span>
+                          <span className="text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px] text-gray-400 truncate w-full block">
+                            {mountain.標高}m
+                          </span>
+                        </div>
+                        
+                        <span className="hidden sm:inline text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 truncate w-full block">
+                          {mountain.市町村}
                         </span>
-                        <span className="text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px] text-gray-400 truncate w-full block">
-                          {mountain.標高}m
-                        </span>
-                      </div>
-                      
-                      <span className="hidden sm:inline text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 truncate w-full block">
-                        {mountain.市町村}
-                      </span>
-                    </button>
-                  );
-                })
-            ) : (
-              // Normal hikes carousel when filter is not active
-              !loading && hikes.map((hike) => {
-                const isSelected = selectedHike?.id === hike.id;
-                return (
-                  <button
-                    key={hike.id}
-                    onClick={() => handleSelectHike(hike)}
-                    className={`flex-shrink-0 text-white rounded-xl p-4 text-left border transition-all min-w-[200px] flex flex-col gap-2 cursor-pointer ${
-                      isSelected
-                        ? 'bg-emerald-500/25 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.3)]'
-                        : 'bg-white/10 hover:bg-white/20 border-white/10'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 text-emerald-400">
-                      <Compass size={18} />
-                      <span className="font-semibold text-white text-lg">{hike.title}</span>
-                    </div>
-                    <span className="text-sm text-gray-300">距離 {hike.distanceKm} km</span>
-                  </button>
-                );
-              })
-            )}
+                      </button>
+                    );
+                  })
+              ) : selectedMunicipality ? (
+                // Display mountains in the selected municipality
+                validMountains
+                  .filter((m) => m.市町村 === selectedMunicipality)
+                  .map((mountain) => {
+                    const isSelected = selectedMountain?.No === mountain.No;
+                    const color = getDifficultyColor(mountain.難易度ランク);
+                    return (
+                      <button
+                        key={`pickup-${mountain.No}`}
+                        onClick={() => handleSelectMountain(mountain)}
+                        title={`${mountain.山名} (${mountain.標高}m)`}
+                        className={`w-full text-white rounded-md p-1 md:p-1.5 text-center border transition-all flex flex-col justify-stretch gap-1 cursor-pointer ${
+                          isSelected
+                            ? 'bg-rose-500/35 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.45)] font-extrabold scale-[1.02]'
+                            : 'bg-white/5 hover:bg-white/10 border-white/10'
+                        }`}
+                      >
+                        {/* Top Difficulty Accent Line */}
+                        <div className="w-full h-1 rounded-full mb-0.5 opacity-90" style={{ backgroundColor: color }} />
+                        
+                        <div className="flex flex-col items-center w-full min-w-0 flex-grow justify-center">
+                          <span className="font-bold text-[8px] sm:text-[10px] md:text-[11px] lg:text-xs text-white truncate w-full flex items-center justify-center gap-0.5">
+                            {mountain.エントリーコースお勧め山 === true && (
+                              <Heart className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-rose-500 fill-rose-500 flex-shrink-0" />
+                            )}
+                            <span className="truncate">{mountain.山名}</span>
+                          </span>
+                          <span className="text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px] text-gray-400 truncate w-full block">
+                            {mountain.標高}m
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+              ) : null}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </APIProvider>
   );
