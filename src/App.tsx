@@ -6,12 +6,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
-import { useHikes, useHikeDetail } from './hooks/useHikes';
-import { HikePolyline } from './components/HikePolyline';
-import { Mountain, MapPin, Navigation, ExternalLink, X, Compass, Home, ChevronLeft, Landmark } from 'lucide-react';
+import { Mountain, MapPin, Navigation, ExternalLink, X, Compass, Home, ChevronLeft, Landmark, Heart, Search } from 'lucide-react';
 import LandingPage from './pages/LandingPage';
 import heroBg from './assets/background_new.jpg';
 import yamaIcon from './assets/yama_icon.svg';
+import { MountainDifficultyExplanation } from './components/MountainDifficultyExplanation';
+import mountainsData from '../mountain_all.json';
 
 import EarthPage from './pages/EarthPage';
 
@@ -34,14 +34,38 @@ export default function AppWrapper() {
   );
 }
 
-function App() {
-  const { hikeId, waypointId } = useParams();
-  const navigate = useNavigate();
-  const selectedHikeId = hikeId || null;
+const validMountains = (mountainsData as any[]).filter(
+  (m) => m.lat !== null && m.lon !== null
+);
 
-  const { hikes, loading: hikesLoading } = useHikes();
-  const { detail, loading: detailLoading } = useHikeDetail(selectedHikeId);
-  const mapRef = useRef<any>(null); // We use this purely to store a reference to the map logic if needed via useMap
+const getDifficultyColor = (rank: number) => {
+  switch (rank) {
+    case 1:
+      return '#8b5cf6'; // Purple
+    case 2:
+      return '#3b82f6'; // Blue
+    case 3:
+      return '#10b981'; // Green
+    case 4:
+      return '#f97316'; // Orange
+    case 5:
+      return '#ef4444'; // Red
+    default:
+      return '#6b7280'; // Gray
+  }
+};
+
+function App() {
+  const { hikeId } = useParams();
+  const navigate = useNavigate();
+  const selectedMountainNo = hikeId ? parseInt(hikeId, 10) : null;
+
+  const selectedMountain = React.useMemo(() => {
+    if (!selectedMountainNo) return null;
+    return validMountains.find(m => m.No === selectedMountainNo) || null;
+  }, [selectedMountainNo]);
+
+  const mapRef = useRef<any>(null);
   
   // Track map centering
   const defaultCenter = { lat: 33.8416, lng: 132.7661 }; // Ehime center roughly
@@ -49,6 +73,69 @@ function App() {
   const [mapZoom, setMapZoom] = useState(9);
   const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
   const [edgeGlow, setEdgeGlow] = useState({ top: false, bottom: false, left: false, right: false });
+
+  // Filter States
+  const [filterRecommended, setFilterRecommended] = useState(false);
+  const [selectedMunicipality, setSelectedMunicipality] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Mountain details popup timer
+  const [showMountainDetails, setShowMountainDetails] = useState(false);
+  const mountainTimerRef = useRef<any>(null);
+
+  const handleCloseMountainDetails = useCallback(() => {
+    setShowMountainDetails(false);
+    if (mountainTimerRef.current) {
+      clearTimeout(mountainTimerRef.current);
+      mountainTimerRef.current = null;
+    }
+  }, []);
+
+  const handleSelectMountain = useCallback((no: number) => {
+    navigate(`/explore/${no}`);
+    
+    setShowMountainDetails(true);
+    if (mountainTimerRef.current) {
+      clearTimeout(mountainTimerRef.current);
+    }
+    mountainTimerRef.current = setTimeout(() => {
+      setShowMountainDetails(false);
+    }, 30000);
+  }, [navigate]);
+
+  useEffect(() => {
+    return () => {
+      if (mountainTimerRef.current) {
+        clearTimeout(mountainTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Compute unique list of municipalities
+  const uniqueMunicipalities = React.useMemo(() => {
+    return Array.from(new Set(validMountains.map(m => m.市町村).filter(Boolean))).sort();
+  }, []);
+
+  // Count mountains per municipality
+  const muniCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    validMountains.forEach(m => {
+      if (m.市町村) {
+        counts[m.市町村] = (counts[m.市町村] || 0) + 1;
+      }
+    });
+    return counts;
+  }, []);
+
+  // Filtered mountains list
+  const filteredMountains = React.useMemo(() => {
+    return validMountains.filter((m) => {
+      const matchesMuni = !selectedMunicipality || m.市町村 === selectedMunicipality;
+      const matchesRec = !filterRecommended || m.エントリーコースお勧め山 === true;
+      const matchesSearch = !searchQuery || m.山名.includes(searchQuery);
+      return matchesMuni && matchesRec && matchesSearch;
+    });
+  }, [selectedMunicipality, filterRecommended, searchQuery]);
 
   const MAP_RESTRICTION = {
     north: 34.45,
@@ -71,28 +158,16 @@ function App() {
     });
   }, []);
 
-  // Focus map when hike or waypoint is routed
+  // Center map on the selected mountain
   useEffect(() => {
-    if (selectedHikeId && detail && !detailLoading) {
-      if (waypointId) {
-        const wp = detail.waypoints.find(w => w.id === waypointId);
-        if (wp) {
-          setMapCenter(wp.location);
-          setMapZoom(16);
-        }
-      } else {
-        // Just hike selected, focus on start location
-        const hike = hikes.find(h => h.id === selectedHikeId);
-        if (hike) {
-          setMapCenter(hike.startLocation);
-          setMapZoom(13);
-        }
-      }
-    } else if (!selectedHikeId) {
+    if (selectedMountain) {
+      setMapCenter({ lat: selectedMountain.lat, lng: selectedMountain.lon });
+      setMapZoom(13);
+    } else {
       setMapCenter(defaultCenter);
       setMapZoom(9);
     }
-  }, [selectedHikeId, waypointId, detail, detailLoading, hikes]);
+  }, [selectedMountain]);
 
   const handleLocateMe = () => {
     if ('geolocation' in navigator) {
@@ -114,17 +189,10 @@ function App() {
     }
   };
 
-  const handleSelectHike = useCallback((id: string) => {
-    navigate(`/explore/${id}`);
-  }, [navigate]);
-
-  const handleSelectWaypoint = useCallback((id: string, wpId: string) => {
-    navigate(`/explore/${id}/${wpId}`);
-  }, [navigate]);
-
   const handleClose = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     navigate('/explore');
+    setShowMountainDetails(false);
   }, [navigate]);
 
   if (!hasValidKey) {
@@ -229,143 +297,208 @@ function App() {
             </div>
           )}
 
-          <div className={`md:w-96 w-full bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col transition-all duration-300 z-10 
-            ${selectedHikeId ? 'h-1/3 md:h-full' : 'h-1/2 md:h-full'}`}>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {hikesLoading ? (
-              <div className="animate-pulse space-y-4">
-                {[1,2,3].map(i => (
-                  <div key={i} className="h-20 bg-gray-100 rounded-lg w-full"></div>
-                ))}
-              </div>
-            ) : (
-              hikes.map(hike => {
-                const isSelected = selectedHikeId === hike.id;
-                return (
-                  <div 
-                    key={hike.id}
-                    onClick={() => handleSelectHike(hike.id)}
-                    className={`p-4 rounded-xl cursor-pointer transition-all border flex flex-col ${isSelected ? 'border-emerald-500 bg-emerald-50 shadow-md transform scale-[1.02]' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}`}
+          <div className="md:w-96 w-full bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col transition-all duration-300 z-10 h-1/2 md:h-full">
+            {/* Search and Filters Header */}
+            <div className="p-4 border-b border-gray-100 space-y-3 flex-shrink-0 bg-white shadow-xs">
+              {/* Search input with search icon */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="山名・キーワードで検索..."
+                  className="w-full text-xs pl-8 pr-8 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full p-0.5"
                   >
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-gray-800 leading-tight">{hike.title}</h3>
-                      <span className="text-xs font-mono text-gray-500 bg-white px-2 py-1 rounded-md border border-gray-100">{hike.date}</span>
-                    </div>
-                    <div className="mt-3 flex gap-4 text-sm text-gray-600">
-                      {hike.distanceKm && (
-                        <div className="flex items-center gap-1">
-                          <Navigation size={14} className="text-gray-400" />
-                          <span>{hike.distanceKm} km</span>
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
+
+              {/* Municipality and Recommended filtering */}
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={selectedMunicipality || ''}
+                  onChange={(e) => setSelectedMunicipality(e.target.value || null)}
+                  className="text-[11px] py-2 px-2 border border-gray-200 rounded-xl font-sans focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-gray-50/50 outline-none"
+                >
+                  <option value="">すべての市町村・島</option>
+                  {uniqueMunicipalities.map((muni) => (
+                    <option key={muni} value={muni}>
+                      {muni} ({muniCounts[muni] || 0})
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => setFilterRecommended(!filterRecommended)}
+                  className={`py-2 px-2 border rounded-xl flex items-center justify-center gap-1 transition-all text-[11px] font-bold ${
+                    filterRecommended
+                      ? 'bg-rose-500 text-white border-rose-400 shadow-sm'
+                      : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Heart className={`w-3 h-3 ${filterRecommended ? 'fill-white' : ''}`} />
+                  <span>お勧めのみ</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Mountains Scrollable List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
+              {filteredMountains.length === 0 ? (
+                <div className="text-center py-12 text-gray-400 space-y-2">
+                  <p className="text-xs">該当する山が見つかりませんでした。</p>
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedMunicipality(null);
+                      setFilterRecommended(false);
+                    }}
+                    className="text-xs text-emerald-600 font-bold hover:underline"
+                  >
+                    フィルターをリセット
+                  </button>
+                </div>
+              ) : (
+                filteredMountains.map((mountain) => {
+                  const isSelected = selectedMountainNo === mountain.No;
+                  const color = getDifficultyColor(mountain.難易度ランク);
+                  return (
+                    <div
+                      key={mountain.No}
+                      onClick={() => handleSelectMountain(mountain.No)}
+                      style={{ borderLeftColor: color, borderLeftWidth: '5px' }}
+                      className={`p-3 rounded-xl cursor-pointer transition-all border flex flex-col ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50/40 shadow-sm transform scale-[1.01]'
+                          : 'border-gray-100 hover:border-emerald-200 hover:bg-gray-50/30'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[9px] font-bold text-gray-400 tracking-wider">
+                              {mountain.市町村 || '愛媛県'}
+                            </span>
+                            {mountain.エントリーコースお勧め山 === true && (
+                              <span className="text-[8px] bg-rose-500/10 text-rose-500 border border-rose-500/10 font-bold px-1 rounded flex items-center gap-0.5 leading-none py-0.5">
+                                <Heart className="w-2.5 h-2.5 fill-current" />
+                                <span>お勧め</span>
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-bold text-gray-800 leading-snug mt-1 flex items-baseline gap-1.5 min-w-0">
+                            <span className="text-sm truncate block">{mountain.山名}</span>
+                            <span className="text-[10px] font-mono text-gray-400 font-medium">{mountain.標高}m</span>
+                          </h3>
+                        </div>
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded font-mono flex-shrink-0" style={{ color: color, backgroundColor: `${color}15` }}>
+                          難易度.{mountain.難易度ランク}
+                        </span>
+                      </div>
+
+                      {isSelected && (
+                        <div className="mt-2 pt-2 border-t border-emerald-100 flex items-center justify-between gap-2 flex-wrap">
+                          {mountain.YAMAPアクティビティID ? (
+                            <a
+                              href={`https://yamap.com/activities/${mountain.YAMAPアクティビティID}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-bold"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              YAMAPで見る <ExternalLink size={10} />
+                            </a>
+                          ) : (
+                            <span className="text-[9px] text-gray-400 italic">GPSログ未掲載</span>
+                          )}
+                          
+                          <button
+                            onClick={handleClose}
+                            className="text-[10px] text-gray-500 hover:text-gray-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-gray-200 shadow-xs"
+                          >
+                            閉じる <X size={10} />
+                          </button>
                         </div>
                       )}
                     </div>
-                    {isSelected && (
-                      <div className="mt-4 pt-3 border-t border-emerald-100 flex items-center justify-between">
-                        <a 
-                          href={hike.yamapUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-xs flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-medium"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          YAMAPで見る <ExternalLink size={12} />
-                        </a>
-                        <button 
-                          onClick={handleClose}
-                          className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-gray-200"
-                        >
-                          閉じる <X size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Map Area */}
+          <div className="flex-1 relative h-full w-full overflow-hidden">
+            {/* Boundary Glow Effects */}
+            <div className={`absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.top ? 'opacity-100' : 'opacity-0'}`} />
+            <div className={`absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.bottom ? 'opacity-100' : 'opacity-0'}`} />
+            <div className={`absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.left ? 'opacity-100' : 'opacity-0'}`} />
+            <div className={`absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.right ? 'opacity-100' : 'opacity-0'}`} />
+
+            <Map
+              center={mapCenter}
+              zoom={mapZoom}
+              minZoom={8}
+              maxZoom={18}
+              restriction={{
+                latLngBounds: MAP_RESTRICTION,
+                strictBounds: false,
+              }}
+              onCenterChanged={handleCenterChanged}
+              onZoomChanged={(ev) => setMapZoom(ev.detail.zoom)}
+              mapId="EHIME_HIKE_MAP_ID"
+              internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
+              style={{ width: '100%', height: '100%' }}
+              disableDefaultUI={true}
+              gestureHandling="greedy"
+            >
+              {/* Filtered Mountains Interactive Pins */}
+              {filteredMountains.map(mountain => {
+                const isSelected = selectedMountain?.No === mountain.No;
+                const color = getDifficultyColor(mountain.難易度ランク);
+                return (
+                  <AdvancedMarker 
+                    key={mountain.No} 
+                    position={{ lat: mountain.lat, lng: mountain.lon }} 
+                    title={`${mountain.山名} (${mountain.標高}m) - ${mountain.市町村}`}
+                    onClick={() => handleSelectMountain(mountain.No)}
+                  >
+                    <Pin 
+                      background={color} 
+                      borderColor={isSelected ? '#ffffff' : color} 
+                      glyphColor="#fff"
+                      scale={isSelected ? 1.25 : 0.85}
+                    />
+                  </AdvancedMarker>
                 );
-              })
+              })}
+            </Map>
+
+            {/* Current Location FAB */}
+            <button
+              onClick={handleLocateMe}
+              className="absolute bottom-6 right-6 bg-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-gray-700 hover:text-emerald-600 hover:bg-gray-50 transition-colors z-50 border border-gray-100 cursor-pointer"
+              aria-label="現在地を表示"
+            >
+              <Compass size={24} />
+            </button>
+
+            {/* Floating difficulty description popup (Auto-closes in 30 seconds) */}
+            {showMountainDetails && selectedMountain && (
+              <MountainDifficultyExplanation
+                mountain={selectedMountain}
+                onClose={handleCloseMountainDetails}
+                isDrawerVisible={false}
+              />
             )}
           </div>
-        </div>
-
-        {/* Map Area */}
-        <div className="flex-1 relative h-full w-full overflow-hidden">
-          {/* Boundary Glow Effects */}
-          <div className={`absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.top ? 'opacity-100' : 'opacity-0'}`} />
-          <div className={`absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.bottom ? 'opacity-100' : 'opacity-0'}`} />
-          <div className={`absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.left ? 'opacity-100' : 'opacity-0'}`} />
-          <div className={`absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-orange-500/30 to-transparent z-10 transition-opacity duration-300 pointer-events-none ${edgeGlow.right ? 'opacity-100' : 'opacity-0'}`} />
-
-          <Map
-            center={mapCenter}
-            zoom={mapZoom}
-            minZoom={8}
-            maxZoom={18}
-            restriction={{
-              latLngBounds: MAP_RESTRICTION,
-              strictBounds: false,
-            }}
-            onCenterChanged={handleCenterChanged}
-            onZoomChanged={(ev) => setMapZoom(ev.detail.zoom)}
-            mapId="EHIME_HIKE_MAP_ID"
-            internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-            style={{ width: '100%', height: '100%' }}
-            disableDefaultUI={true}
-            gestureHandling="greedy"
-          >
-            {/* Overview Markers: Show start points for all hikes if none selected */}
-            {!selectedHikeId && hikes.map(hike => (
-              <AdvancedMarker 
-                key={hike.id} 
-                position={hike.startLocation} 
-                title={hike.title}
-                onClick={() => handleSelectHike(hike.id)}
-              >
-                <Pin background="#10b981" borderColor="#047857" glyphColor="#fff" />
-              </AdvancedMarker>
-            ))}
-
-            {/* Selected Hike Details */}
-            {selectedHikeId && detail && !detailLoading && (
-              <>
-                <HikePolyline path={detail.path} strokeColor="#10b981" strokeWeight={5} />
-                
-                {detail.waypoints.map(wp => {
-                  const isWpSelected = waypointId === wp.id;
-                  return (
-                    <AdvancedMarker 
-                      key={wp.id} 
-                      position={wp.location} 
-                      title={wp.name}
-                      onClick={() => handleSelectWaypoint(selectedHikeId, wp.id)}
-                    >
-                      <div className={`px-2 py-1 rounded-md shadow-lg border flex flex-col items-center transition-colors cursor-pointer ${isWpSelected ? 'bg-emerald-600 border-emerald-700 text-white' : 'bg-white border-gray-200'}`}>
-                        <span className={`text-[10px] font-bold ${isWpSelected ? 'text-white' : 'text-gray-800'}`}>{wp.name}</span>
-                        {wp.type === 'summit' && wp.elevation && (
-                          <span className={`text-[9px] ${isWpSelected ? 'text-emerald-100' : 'text-gray-500'}`}>{wp.elevation}m</span>
-                        )}
-                      </div>
-                    </AdvancedMarker>
-                  )
-                })}
-              </>
-            )}
-            
-            {/* Loading indicator for details */}
-            {selectedHikeId && detailLoading && (
-              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-full shadow-lg text-sm text-gray-600 font-medium z-50 flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                ルートを読み込み中...
-              </div>
-            )}
-          </Map>
-
-          {/* Current Location FAB */}
-          <button
-            onClick={handleLocateMe}
-            className="absolute bottom-6 right-6 bg-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-gray-700 hover:text-emerald-600 hover:bg-gray-50 transition-colors z-50 border border-gray-100"
-            aria-label="現在地を表示"
-          >
-            <Compass size={24} />
-          </button>
-        </div>
         </div>
       </div>
     </APIProvider>
