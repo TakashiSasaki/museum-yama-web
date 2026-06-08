@@ -6,7 +6,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
-import { Mountain, MapPin, Navigation, ExternalLink, X, Compass, Home, ChevronLeft, Landmark, Heart, Search } from 'lucide-react';
+import { Mountain, MapPin, Navigation, ExternalLink, X, Home, ChevronLeft, Landmark, Heart, Search } from 'lucide-react';
 import LandingPage from './pages/LandingPage';
 import heroBg from './assets/background_new.jpg';
 import yamaIcon from './assets/yama_icon.svg';
@@ -168,26 +168,6 @@ function App() {
       setMapZoom(9);
     }
   }, [selectedMountain]);
-
-  const handleLocateMe = () => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setMapCenter({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          setMapZoom(13);
-        },
-        (error) => {
-          console.error("Error getting location: ", error);
-          alert("現在地を取得できませんでした。");
-        }
-      );
-    } else {
-      alert("ブラウザが位置情報をサポートしていません。");
-    }
-  };
 
   const handleClose = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -480,15 +460,6 @@ function App() {
                 );
               })}
             </Map>
-
-            {/* Current Location FAB */}
-            <button
-              onClick={handleLocateMe}
-              className="absolute bottom-6 right-6 bg-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-gray-700 hover:text-emerald-600 hover:bg-gray-50 transition-colors z-50 border border-gray-100 cursor-pointer"
-              aria-label="現在地を表示"
-            >
-              <Compass size={24} />
-            </button>
 
             {/* Floating difficulty description popup (Auto-closes in 30 seconds) */}
             {showMountainDetails && selectedMountain && (

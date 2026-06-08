@@ -106,12 +106,12 @@ export default function LandingPage() {
             愛媛の隆起と浸食が織りなす地形の魅力を登山記録とともに紐解く。
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+          <div className="flex flex-col md:flex-row items-center gap-4 justify-center w-full max-w-md md:max-w-none">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/explore')}
-              className="group relative inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-medium tracking-wider overflow-hidden transition-colors text-sm md:text-base cursor-pointer"
+              className="group relative inline-flex items-center justify-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-medium tracking-wider overflow-hidden transition-colors text-sm md:text-base cursor-pointer w-full md:w-auto"
             >
               <span className="relative z-10 flex items-center gap-2">
                 <MapIcon className="w-4 h-4 md:w-5 md:h-5" />
@@ -126,11 +126,11 @@ export default function LandingPage() {
               whileTap={{ scale: 0.95 }}
               href="https://github.com/TakashiSasaki/museum-yama-data/raw/refs/heads/museum-yama-data/site/assets/ehime-yama-2026.xlsx"
               download="ehime-yama-2026.xlsx"
-              className="group relative inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 rounded-full font-medium tracking-wider transition-colors text-sm md:text-base cursor-pointer"
+              className="group relative inline-flex items-center justify-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 rounded-full font-medium tracking-wider transition-colors text-sm md:text-base cursor-pointer w-full md:w-auto"
             >
-              <span className="relative z-10 flex items-center gap-2">
-                <Download className="w-4 h-4 md:w-5 md:h-5 text-emerald-400 animate-pulse" />
-                えひめの山 （Excel形式）
+              <span className="relative z-10 flex items-center justify-center gap-2 whitespace-nowrap">
+                <Download className="w-4 h-4 md:w-5 md:h-5 text-emerald-400 animate-pulse flex-shrink-0" />
+                えひめの山（Excel形式）
               </span>
             </motion.a>
           </div>
