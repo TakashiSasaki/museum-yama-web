@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APIProvider, Map3D, Marker3D, type Map3DRef } from '@vis.gl/react-google-maps';
-import { Compass, Play, Pause, Layers, Eye, EyeOff, Zap, Copy, Check, X, Heart } from 'lucide-react';
+import { Compass, Play, Pause, Layers, Eye, EyeOff, Zap, Copy, Check, X, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useHikes } from '../hooks/useHikes';
 import yamaIcon from '../assets/yama_icon.svg';
 import { MapNavigationGuide } from '../components/MapNavigationGuide';
@@ -107,6 +107,51 @@ export default function EarthPage() {
 
   const [filterRecommended, setFilterRecommended] = useState(false);
   const [selectedMunicipality, setSelectedMunicipality] = useState<string | null>(null);
+
+  // Pagination states and dynamic cards limit per view
+  const [currentPage, setCurrentPage] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    const updateItemsPerPage = () => {
+      const width = window.innerWidth;
+      if (width >= 1280) { // xl: 16 columns * 2 rows
+        setItemsPerPage(32);
+      } else if (width >= 1024) { // lg: 10 columns * 2 rows
+        setItemsPerPage(20);
+      } else if (width >= 768) { // md: 7 columns * 2 rows
+        setItemsPerPage(14);
+      } else if (width >= 640) { // sm: 5 columns * 2 rows
+        setItemsPerPage(10);
+      } else { // mobile: 3 columns * 2 rows
+        setItemsPerPage(6);
+      }
+    };
+    updateItemsPerPage();
+    window.addEventListener('resize', updateItemsPerPage);
+    return () => window.removeEventListener('resize', updateItemsPerPage);
+  }, []);
+
+  // Compute active list of filtered mountains to paginate
+  const activeMountainsList = React.useMemo(() => {
+    if (filterRecommended) {
+      return validMountains.filter((m) => m.エントリーコースお勧め山 === true);
+    } else if (selectedMunicipality) {
+      return validMountains.filter((m) => m.市町村 === selectedMunicipality);
+    }
+    return [];
+  }, [filterRecommended, selectedMunicipality]);
+
+  // Reset to page 0 whenever filter conditions or active lists change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [filterRecommended, selectedMunicipality]);
+
+  const totalPages = Math.ceil(activeMountainsList.length / itemsPerPage);
+  const paginatedMountains = React.useMemo(() => {
+    const start = currentPage * itemsPerPage;
+    return activeMountainsList.slice(start, start + itemsPerPage);
+  }, [activeMountainsList, currentPage, itemsPerPage]);
 
   // Compute unique municipalities sorted alphabetically
   const uniqueMunicipalities = React.useMemo(() => {
@@ -747,7 +792,7 @@ export default function EarthPage() {
                 const isSelected = selectedMountain?.No === mountain.No;
                 return (
                   <Marker3D
-                    key={`mountain-${mountain.No}`}
+                    key={`mountain-3d-${mountain.No || 'null'}-${mountain.山名}-${mountain.lat}-${mountain.lon}`}
                     position={{
                       lat: mountain.lat,
                       lng: mountain.lon,
@@ -902,86 +947,91 @@ export default function EarthPage() {
           </div>
         )}
 
-        {/* Bottom Drawer for interactively picking a mountain */}
+        {/* Bottom Drawer for interactively picking a mountain (Paginated to max 2 rows) */}
         {(filterRecommended || selectedMunicipality) && (
-          <div className="absolute z-40 pointer-events-auto transition-all duration-300 bottom-0 left-[110px] sm:left-[135px] md:left-[155px] right-0 transform-none">
-            <div className="bg-black/25 backdrop-blur-md border border-white/10 border-r-0 border-b-0 transition-all duration-300 shadow-2xl rounded-none p-1.5 md:p-2.5 overflow-y-auto max-h-[30vh] md:max-h-[25vh] grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-10 xl:grid-cols-[repeat(16,minmax(0,1fr))] gap-1 w-full no-scrollbar">
-              {filterRecommended ? (
-                // Only display recommended mountains when filter is active
-                validMountains
-                  .filter((m) => m.エントリーコースお勧め山 === true)
-                  .map((mountain) => {
-                    const isSelected = selectedMountain?.No === mountain.No;
-                    const color = getDifficultyColor(mountain.難易度ランク);
-                    return (
-                      <button
-                        key={`pickup-${mountain.No}`}
-                        onClick={() => handleSelectMountain(mountain)}
-                        title={`${mountain.山名} (${mountain.標高}m) - ${mountain.市町村}`}
-                        className={`w-full text-white rounded-md p-1 md:p-1.5 text-center border transition-all flex flex-col justify-stretch gap-1 cursor-pointer ${
-                          isSelected
-                            ? 'bg-rose-500/35 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.45)] font-extrabold scale-[1.02]'
-                            : 'bg-white/5 hover:bg-white/10 border-white/10'
-                        }`}
-                      >
-                        {/* Top Difficulty Accent Line */}
-                        <div className="w-full h-1 rounded-full mb-0.5 opacity-90" style={{ backgroundColor: color }} />
-                        
-                        <div className="flex flex-col items-center w-full min-w-0 flex-grow justify-center">
-                          <span className="font-bold text-[8px] sm:text-[10px] md:text-[11px] lg:text-xs text-white truncate w-full flex items-center justify-center gap-0.5">
-                            {mountain.エントリーコースお勧め山 === true && (
-                              <Heart className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-rose-500 fill-rose-500 flex-shrink-0" />
-                            )}
-                            <span className="truncate">{mountain.山名}</span>
-                          </span>
-                          <span className="text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px] text-gray-400 truncate w-full block">
-                            {mountain.標高}m
-                          </span>
-                        </div>
-                        
-                        <span className="hidden sm:inline text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 truncate w-full block">
-                          {mountain.市町村}
-                        </span>
-                      </button>
-                    );
-                  })
-              ) : selectedMunicipality ? (
-                // Display mountains in the selected municipality
-                validMountains
-                  .filter((m) => m.市町村 === selectedMunicipality)
-                  .map((mountain) => {
-                    const isSelected = selectedMountain?.No === mountain.No;
-                    const color = getDifficultyColor(mountain.難易度ランク);
-                    return (
-                      <button
-                        key={`pickup-${mountain.No}`}
-                        onClick={() => handleSelectMountain(mountain)}
-                        title={`${mountain.山名} (${mountain.標高}m)`}
-                        className={`w-full text-white rounded-md p-1 md:p-1.5 text-center border transition-all flex flex-col justify-stretch gap-1 cursor-pointer ${
-                          isSelected
-                            ? 'bg-rose-500/35 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.45)] font-extrabold scale-[1.02]'
-                            : 'bg-white/5 hover:bg-white/10 border-white/10'
-                        }`}
-                      >
-                        {/* Top Difficulty Accent Line */}
-                        <div className="w-full h-1 rounded-full mb-0.5 opacity-90" style={{ backgroundColor: color }} />
-                        
-                        <div className="flex flex-col items-center w-full min-w-0 flex-grow justify-center">
-                          <span className="font-bold text-[8px] sm:text-[10px] md:text-[11px] lg:text-xs text-white truncate w-full flex items-center justify-center gap-0.5">
-                            {mountain.エントリーコースお勧め山 === true && (
-                              <Heart className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-rose-500 fill-rose-500 flex-shrink-0" />
-                            )}
-                            <span className="truncate">{mountain.山名}</span>
-                          </span>
-                          <span className="text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px] text-gray-400 truncate w-full block">
-                            {mountain.標高}m
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })
-              ) : null}
+          <div className="absolute z-40 pointer-events-auto transition-all duration-300 bottom-0 left-[110px] sm:left-[135px] md:left-[155px] right-0 transform-none bg-black/40 border-t border-white/10 backdrop-blur-md shadow-2xl flex items-center justify-between px-2 md:px-3 py-2">
+            
+            {/* Left Paginate Button */}
+            {totalPages > 1 && (
+              <button
+                disabled={currentPage === 0}
+                onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                className={`flex-shrink-0 p-2 md:p-2.5 rounded-full border border-white/10 text-white backdrop-blur-md transition-all cursor-pointer ${
+                  currentPage === 0
+                    ? 'opacity-30 cursor-not-allowed bg-transparent'
+                    : 'bg-white/10 hover:bg-white/20 active:scale-95 hover:border-emerald-400'
+                }`}
+                title="前のページ"
+              >
+                <ChevronLeft size={16} className="md:w-5 md:h-5" />
+              </button>
+            )}
+
+            {/* Grid Container (Strictly 2 rows maximum, no vertical scrolling) */}
+            <div className="flex-1 mx-2 md:mx-3 py-0.5 grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-10 xl:grid-cols-[repeat(16,minmax(0,1fr))] gap-1.5 w-full overflow-hidden select-none">
+              {paginatedMountains.map((mountain) => {
+                const isSelected = selectedMountain?.No === mountain.No;
+                const color = getDifficultyColor(mountain.難易度ランク);
+                const isRecommended = mountain.エントリーコースお勧め山 === true;
+                return (
+                  <button
+                    key={`pickup-${mountain.No || 'null'}-${mountain.山名}-${mountain.lat}-${mountain.lon}`}
+                    onClick={() => handleSelectMountain(mountain)}
+                    title={`${mountain.山名} (${mountain.標高}m)${isRecommended ? ' - お勧めコース' : ''}`}
+                    className={`w-full text-white rounded-md p-1 md:p-1.5 text-center border transition-all flex flex-col justify-stretch gap-1 cursor-pointer min-h-[50px] md:min-h-[60px] justify-between ${
+                      isSelected
+                        ? 'bg-rose-500/35 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.45)] font-extrabold scale-[1.02]'
+                        : 'bg-white/5 hover:bg-white/10 border-white/10'
+                    }`}
+                  >
+                    {/* Top Difficulty Accent Line */}
+                    <div className="w-full h-1 rounded-full mb-0.5 opacity-90 flex-shrink-0" style={{ backgroundColor: color }} />
+                    
+                    <div className="flex flex-col items-center w-full min-w-0 flex-grow justify-center">
+                      <span className="font-bold text-[8px] sm:text-[10px] md:text-[11px] lg:text-xs text-white truncate w-full flex items-center justify-center gap-0.5">
+                        {isRecommended && (
+                          <Heart className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-rose-500 fill-rose-500 flex-shrink-0" />
+                        )}
+                        <span className="truncate">{mountain.山名}</span>
+                      </span>
+                      <span className="text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px] text-gray-400 truncate w-full block">
+                        {mountain.標高}m
+                      </span>
+                    </div>
+
+                    {filterRecommended && (
+                      <span className="hidden sm:inline text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 truncate w-full block">
+                        {mountain.市町村}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Right Group: Page indicator and right arrow button */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {totalPages > 1 && (
+                <>
+                  <span className="text-[9px] md:text-[10.5px] text-zinc-400 font-mono tracking-tighter select-none hidden sm:inline whitespace-nowrap">
+                    {currentPage + 1} / {totalPages} 頁
+                  </span>
+                  <button
+                    disabled={currentPage >= totalPages - 1}
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1))}
+                    className={`p-2 md:p-2.5 rounded-full border border-white/10 text-white backdrop-blur-md transition-all cursor-pointer ${
+                      currentPage >= totalPages - 1
+                        ? 'opacity-30 cursor-not-allowed bg-transparent'
+                        : 'bg-white/10 hover:bg-white/20 active:scale-95 hover:border-emerald-400'
+                    }`}
+                    title="次のページ"
+                  >
+                    <ChevronRight size={16} className="md:w-5 md:h-5" />
+                  </button>
+                </>
+              )}
+            </div>
+
           </div>
         )}
 

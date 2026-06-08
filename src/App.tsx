@@ -445,7 +445,7 @@ function App() {
                 const color = getDifficultyColor(mountain.難易度ランク);
                 return (
                   <AdvancedMarker 
-                    key={mountain.No} 
+                    key={`mountain-2d-${mountain.No || 'null'}-${mountain.山名}-${mountain.lat}-${mountain.lon}`} 
                     position={{ lat: mountain.lat, lng: mountain.lon }} 
                     title={`${mountain.山名} (${mountain.標高}m) - ${mountain.市町村}`}
                     onClick={() => handleSelectMountain(mountain.No)}
