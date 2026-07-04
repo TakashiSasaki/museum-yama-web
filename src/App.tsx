@@ -128,7 +128,30 @@ function App() {
   const [mapZoom, setMapZoom] = useState(9);
   const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [edgeGlow, setEdgeGlow] = useState({ top: false, bottom: false, left: false, right: false });
+
+  const handleLocateCurrentPosition = useCallback(() => {
+    if (!navigator.geolocation) {
+      alert('現在地を取得できませんでした。');
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setMapCenter({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setMapZoom(13);
+        setIsLocating(false);
+      },
+      () => {
+        alert('現在地を取得できませんでした。');
+        setIsLocating(false);
+      }
+    );
+  }, []);
 
   // Filter States
   const [filterRecommended, setFilterRecommended] = useState(false);
@@ -288,6 +311,18 @@ function App() {
             >
               <Search className="w-3.5 h-3.5" />
               <span className="text-xs font-bold">探す</span>
+            </button>
+
+            {/* Locate Current Position Button */}
+            <button
+              onClick={handleLocateCurrentPosition}
+              disabled={isLocating}
+              className="ml-1 px-3 py-1.5 text-white/90 bg-white/10 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+              aria-label="現在地に移動"
+              title="現在地に移動"
+            >
+              <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'animate-pulse' : ''}`} />
+              <span className="text-xs font-bold">現在地</span>
             </button>
           </div>
           <button 
