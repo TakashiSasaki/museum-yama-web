@@ -1,0 +1,75 @@
+name: Sync to Agent Branches
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 全ての履歴を取得（マージに必要）
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TARGET_BRANCHES=("jules" "chatgpt" "codex")
+          
+          for TARGET_BRANCH in "${TARGET_BRANCHES[@]}"; do
+            echo "========================================"
+            echo "Syncing to $TARGET_BRANCH..."
+            echo "========================================"
+            
+            # リモートにブランチが存在するか確認
+            if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" > /dev/null 2>&1; then
+              echo "Branch $TARGET_BRANCH exists. Attempting to merge..."
+              
+              # 対象ブランチをフェッチしてチェックアウト
+              git fetch origin "$TARGET_BRANCH"
+              git checkout -B "$TARGET_BRANCH" origin/"$TARGET_BRANCH"
+              
+              # mainブランチをマージ
+              if git merge origin/main --no-edit; then
+                echo "Merge successful. Pushing to $TARGET_BRANCH..."
+                git push origin "$TARGET_BRANCH"
+              else
+                echo "Merge conflict detected! Aborting merge and creating PR..."
+                git merge --abort
+                
+                # すでにPRが存在するか確認
+                EXISTING_PR=$(gh pr list --base "$TARGET_BRANCH" --head main --state open --json url --jq '.[0].url')
+                
+                if [ -z "$EXISTING_PR" ]; then
+                  gh pr create \
+                    --base "$TARGET_BRANCH" \
+                    --head main \
+                    --title "Sync: Merge main into $TARGET_BRANCH" \
+                    --body "Automated PR to sync \`main\` into \`$TARGET_BRANCH\`. Conflicts were detected during the automated merge. Please resolve them."
+                  echo "Pull request created."
+                else
+                  echo "Pull request already exists: $EXISTING_PR. Skipping PR creation."
+                fi
+              fi
+            else
+              echo "Branch $TARGET_BRANCH does not exist. Creating it..."
+              git checkout -b "$TARGET_BRANCH" origin/main
+              git push origin "$TARGET_BRANCH"
+            fi
+            
+            # 次のイテレーションのためにmainに戻る (アクション開始時のデフォルトブランチ)
+            git checkout main
+          done
