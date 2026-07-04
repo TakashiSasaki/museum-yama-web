@@ -385,9 +385,9 @@ function App() {
             </div>
 
             {/* Mountains Scrollable List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
+            <div className="flex-1 overflow-y-auto p-2 md:p-4 grid grid-cols-2 md:grid-cols-1 gap-2 content-start no-scrollbar">
               {filteredMountains.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 space-y-2">
+                <div className="text-center py-12 text-gray-400 space-y-2 col-span-2 md:col-span-1">
                   <p className="text-xs">該当する山が見つかりませんでした。</p>
                   <button
                     onClick={() => {
