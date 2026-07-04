@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ShieldAlert, Footprints, Flame, Info, Compass } from 'lucide-react';
+import { X, ShieldAlert, Footprints, Flame, Compass } from 'lucide-react';
 
 const YamapIcon = ({ className }: { className?: string }) => (
   <svg 
@@ -196,14 +196,7 @@ export const MountainDifficultyExplanation: React.FC<MountainDifficultyExplanati
             </div>
           </div>
 
-          {/* Dynamic real-time closure visual indicator */}
-          <div className="mt-2 flex items-center justify-between text-[9px] text-gray-400 font-medium font-mono border-t border-white/10 pt-2.5 leading-none">
-            <span className="flex items-center gap-1">
-              <Info className="w-3 h-3 text-gray-400" />
-              <span>選択から30秒後に自動で非表示</span>
-            </span>
-            <span>AUTO CLOSE TIME</span>
-          </div>
+
 
         </div>
 
