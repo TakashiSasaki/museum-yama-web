@@ -136,10 +136,11 @@ export const MountainDifficultyExplanation: React.FC<MountainDifficultyExplanati
                   href={`https://yamap.com/activities/${mountain.YAMAPアクティビティID}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-[#E60012]/20 hover:bg-[#E60012]/30 text-[#E60012] transition-colors p-1.5 rounded-full flex items-center justify-center"
+                  className="bg-[#E60012]/20 hover:bg-[#E60012]/30 text-[#E60012] transition-colors px-2.5 py-1.5 rounded-full flex items-center justify-center gap-1.5"
                   title="YAMAPで開く"
                 >
-                  <YamapIcon className="w-4 h-4" />
+                  <YamapIcon className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-bold tracking-wider">YAMAP</span>
                 </a>
               )}
               <button
