@@ -1,3 +1,12 @@
+/**
+ * Ehime Hike Tracker - Landing Page
+ * 
+ * Developed in: 2026
+ * Developed by: Takashi Sasaki / 佐々木 隆志 (Ehime University / 愛媛大学)
+ * Organization: Ehime University Museum / 愛媛大学ミュージアム
+ * Description: Interactive web application to visualize hiking records and topography of Ehime's gorgeous peaks.
+ */
+
 import React, { useEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';

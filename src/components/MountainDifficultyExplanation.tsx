@@ -1,6 +1,22 @@
 import React from 'react';
 import { X, ShieldAlert, Footprints, Flame, Info, Compass } from 'lucide-react';
 
+const YamapIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 100 100" 
+    fill="currentColor" 
+    className={className} 
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path 
+      d="M 50 15 L 85 85 L 50 85 L 50 45 L 30 85 L 15 85 Z" 
+      stroke="currentColor" 
+      strokeWidth="8" 
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 interface Mountain {
   No: number;
   山名: string;
@@ -8,6 +24,7 @@ interface Mountain {
   難易度ランク: number;
   市町村?: string;
   エントリーコースお勧め山?: boolean | null;
+  YAMAPアクティビティID?: string | number;
 }
 
 interface MountainDifficultyExplanationProps {
@@ -95,7 +112,7 @@ export const MountainDifficultyExplanation: React.FC<MountainDifficultyExplanati
         }
       `}</style>
 
-      <div className="relative bg-zinc-950/45 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-[0_20px_40px_-5px_rgba(0,0,0,0.8)]">
+      <div className="relative bg-zinc-950/90 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden shadow-[0_20px_40px_-5px_rgba(0,0,0,0.8)]">
         
         {/* Top Header Grid Accent Bar */}
         <div className="w-full h-1" style={{ backgroundColor: meta.accentColor }} />
@@ -104,22 +121,35 @@ export const MountainDifficultyExplanation: React.FC<MountainDifficultyExplanati
           {/* Header Area */}
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+              <span className="text-[10px] uppercase font-bold text-gray-300 tracking-wider">
                 {mountain.市町村 || '愛媛県'}
               </span>
               <h2 className="text-xl font-extrabold text-white flex items-baseline gap-1.5 truncate mt-0.5">
                 <span>{mountain.山名}</span>
-                <span className="text-[12px] text-gray-300 font-medium font-mono">{mountain.標高}m</span>
+                <span className="text-[12px] text-gray-200 font-medium font-mono">{mountain.標高}m</span>
               </h2>
             </div>
             
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-1.5 rounded-full cursor-pointer flex-shrink-0"
-              title="閉じる"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {mountain.YAMAPアクティビティID && (
+                <a
+                  href={`https://yamap.com/activities/${mountain.YAMAPアクティビティID}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-[#E60012]/20 hover:bg-[#E60012]/30 text-[#E60012] transition-colors p-1.5 rounded-full flex items-center justify-center"
+                  title="YAMAPで開く"
+                >
+                  <YamapIcon className="w-4 h-4" />
+                </a>
+              )}
+              <button
+                onClick={onClose}
+                className="text-gray-300 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-1.5 rounded-full cursor-pointer"
+                title="閉じる"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Difficulty Rank Banner */}
@@ -132,33 +162,33 @@ export const MountainDifficultyExplanation: React.FC<MountainDifficultyExplanati
                 {meta.stars}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 mt-0.5 text-[8.5px] uppercase font-bold tracking-widest text-[#cfd3db]">
+            <div className="flex items-center gap-1.5 mt-0.5 text-[8.5px] uppercase font-bold tracking-widest text-gray-200">
               <Flame className="w-3.5 h-3.5 fill-current flex-shrink-0" style={{ color: meta.accentColor }} />
               <span>Ehime Peak Grade classification</span>
             </div>
           </div>
 
           {/* Guidelines Section */}
-          <div className="flex flex-col gap-2.5 mt-1 border-t border-white/5 pt-3">
+          <div className="flex flex-col gap-2.5 mt-1 border-t border-white/10 pt-3">
             <div className="flex items-start gap-2.5">
-              <div className="p-1 rounded-lg bg-white/5 flex-shrink-0 text-gray-300 mt-0.5">
+              <div className="p-1 rounded-lg bg-white/10 flex-shrink-0 text-gray-200 mt-0.5">
                 <Compass className="w-3.5 h-3.5" />
               </div>
               <div className="flex-1">
-                <span className="text-[10px] text-gray-400 font-extrabold block">ルートの特徴</span>
-                <p className="text-xs text-gray-200 mt-0.5 leading-relaxed">
+                <span className="text-[10px] text-gray-300 font-extrabold block">ルートの特徴</span>
+                <p className="text-xs text-gray-100 mt-0.5 leading-relaxed">
                   {meta.guideline}
                 </p>
               </div>
             </div>
 
             <div className="flex items-start gap-2.5">
-              <div className="p-1 rounded-lg bg-white/5 flex-shrink-0 text-gray-300 mt-0.5">
+              <div className="p-1 rounded-lg bg-white/10 flex-shrink-0 text-gray-200 mt-0.5">
                 <Footprints className="w-3.5 h-3.5" />
               </div>
               <div className="flex-1">
-                <span className="text-[10px] text-gray-400 font-extrabold block">推奨される装備・足元</span>
-                <p className="text-xs text-gray-200 mt-0.5 leading-relaxed">
+                <span className="text-[10px] text-gray-300 font-extrabold block">推奨される装備・足元</span>
+                <p className="text-xs text-gray-100 mt-0.5 leading-relaxed">
                   {meta.gear}
                 </p>
               </div>
@@ -166,9 +196,9 @@ export const MountainDifficultyExplanation: React.FC<MountainDifficultyExplanati
           </div>
 
           {/* Dynamic real-time closure visual indicator */}
-          <div className="mt-2 flex items-center justify-between text-[9px] text-gray-500 font-medium font-mono border-t border-white/5 pt-2.5 leading-none">
+          <div className="mt-2 flex items-center justify-between text-[9px] text-gray-400 font-medium font-mono border-t border-white/10 pt-2.5 leading-none">
             <span className="flex items-center gap-1">
-              <Info className="w-3 h-3 text-gray-500" />
+              <Info className="w-3 h-3 text-gray-400" />
               <span>選択から30秒後に自動で非表示</span>
             </span>
             <span>AUTO CLOSE TIME</span>

@@ -45,9 +45,25 @@ const HeartMarker = ({ color }: { color: string }) => (
 );
 
 const PinMarker = ({ color }: { color: string }) => (
-  <svg width="32" height="42" viewBox="0 0 24 30" fill={color} stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0px 3px 6px rgba(0,0,0,0.4))' }}>
-    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7Z" />
-    <circle cx="12" cy="9" r="3" fill="#ffffff" />
+  <svg 
+    width="40" 
+    height="40" 
+    viewBox="0 0 24 24" 
+    style={{ filter: 'drop-shadow(0px 3px 5px rgba(0,0,0,0.45))' }}
+  >
+    {/* Back large peak (White border) */}
+    <path d="M12 2L2.5 21h19L12 2z" fill="#ffffff" />
+    {/* Back large peak (Main fill color) */}
+    <path d="M12 3.8L4.2 20h15.6L12 3.8z" fill={color} />
+    {/* Back large peak snowcap (White) */}
+    <path d="M12 3.8L9.5 9l1.2 1 1.3-1.5 1.3 1.5 1.2-1L12 3.8z" fill="#ffffff" />
+
+    {/* Front right small peak (White border) */}
+    <path d="M16.5 9.5L11.5 21h10L16.5 9.5z" fill="#ffffff" />
+    {/* Front right small peak (Main fill color) */}
+    <path d="M16.5 11L12.8 20h7.4L16.5 11z" fill={color} />
+    {/* Front right small peak snowcap (White) */}
+    <path d="M16.5 11l-1.5 3.3.7.7.8-1 1 1 .5-.5L16.5 11z" fill="#ffffff" />
   </svg>
 );
 
@@ -798,7 +814,7 @@ export default function EarthPage() {
                       lng: mountain.lon,
                       altitude: mountain.ele_gps || Number(mountain.標高) || 0,
                     }}
-                    label={`${mountain.山名} (${mountain.標高}m)${isSelected ? ' ★' : ''}`}
+                    label={`${mountain.山名}${isSelected ? ' ★' : ''}`}
                   >
                     {isRecommended ? (
                       <HeartMarker color={isSelected ? '#ef4444' : color} />

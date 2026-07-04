@@ -5,7 +5,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
-import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps';
 import { Mountain, MapPin, Navigation, ExternalLink, X, Home, ChevronLeft, Landmark, Heart, Search } from 'lucide-react';
 import LandingPage from './pages/LandingPage';
 import heroBg from './assets/background_new.jpg';
@@ -54,6 +54,45 @@ const getDifficultyColor = (rank: number) => {
       return '#6b7280'; // Gray
   }
 };
+
+const HeartMarker = ({ color, isSelected }: { color: string; isSelected?: boolean }) => (
+  <svg 
+    width={isSelected ? "46" : "34"} 
+    height={isSelected ? "46" : "34"} 
+    viewBox="0 0 24 24" 
+    fill={color} 
+    stroke="#ffffff" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    style={{ filter: 'drop-shadow(0px 3px 5px rgba(0,0,0,0.45))', transition: 'all 0.15s ease-out' }}
+  >
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+  </svg>
+);
+
+const PinMarker = ({ color, isSelected }: { color: string; isSelected?: boolean }) => (
+  <svg 
+    width={isSelected ? "46" : "34"} 
+    height={isSelected ? "46" : "34"} 
+    viewBox="0 0 24 24" 
+    style={{ filter: 'drop-shadow(0px 3px 5px rgba(0,0,0,0.45))', transition: 'all 0.15s ease-out' }}
+  >
+    {/* Back large peak (White border) */}
+    <path d="M12 2L2.5 21h19L12 2z" fill="#ffffff" />
+    {/* Back large peak (Main fill color) */}
+    <path d="M12 3.8L4.2 20h15.6L12 3.8z" fill={color} />
+    {/* Back large peak snowcap (White) */}
+    <path d="M12 3.8L9.5 9l1.2 1 1.3-1.5 1.3 1.5 1.2-1L12 3.8z" fill="#ffffff" />
+
+    {/* Front right small peak (White border) */}
+    <path d="M16.5 9.5L11.5 21h10L16.5 9.5z" fill="#ffffff" />
+    {/* Front right small peak (Main fill color) */}
+    <path d="M16.5 11L12.8 20h7.4L16.5 11z" fill={color} />
+    {/* Front right small peak snowcap (White) */}
+    <path d="M16.5 11l-1.5 3.3.7.7.8-1 1 1 .5-.5L16.5 11z" fill="#ffffff" />
+  </svg>
+);
 
 function App() {
   const { hikeId } = useParams();
@@ -443,6 +482,7 @@ function App() {
               {filteredMountains.map(mountain => {
                 const isSelected = selectedMountain?.No === mountain.No;
                 const color = getDifficultyColor(mountain.難易度ランク);
+                const isRecommended = mountain.エントリーコースお勧め山 === true;
                 return (
                   <AdvancedMarker 
                     key={`mountain-2d-${mountain.No || 'null'}-${mountain.山名}-${mountain.lat}-${mountain.lon}`} 
@@ -450,12 +490,11 @@ function App() {
                     title={`${mountain.山名} (${mountain.標高}m) - ${mountain.市町村}`}
                     onClick={() => handleSelectMountain(mountain.No)}
                   >
-                    <Pin 
-                      background={color} 
-                      borderColor={isSelected ? '#ffffff' : color} 
-                      glyphColor="#fff"
-                      scale={isSelected ? 1.25 : 0.85}
-                    />
+                    {isRecommended ? (
+                      <HeartMarker color={isSelected ? '#ef4444' : color} isSelected={isSelected} />
+                    ) : (
+                      <PinMarker color={isSelected ? '#fcd34d' : color} isSelected={isSelected} />
+                    )}
                   </AdvancedMarker>
                 );
               })}
