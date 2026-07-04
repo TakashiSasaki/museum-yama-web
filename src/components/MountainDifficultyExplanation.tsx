@@ -119,7 +119,7 @@ export const MountainDifficultyExplanation: React.FC<MountainDifficultyExplanati
         {/* Top Header Grid Accent Bar */}
         <div className="w-full h-1" style={{ backgroundColor: meta.accentColor }} />
 
-        <div className="p-4 md:p-5 flex flex-col gap-3 text-white">
+        <div className="p-4 md:p-5 pb-3 md:pb-4 flex flex-col gap-3 text-white">
           {/* Header Area */}
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -197,9 +197,6 @@ export const MountainDifficultyExplanation: React.FC<MountainDifficultyExplanati
               </div>
             </div>
           </div>
-
-
-
         </div>
 
         {/* 30 Second progress bar */}

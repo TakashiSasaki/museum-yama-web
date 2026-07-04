@@ -139,10 +139,14 @@ function App() {
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setMapCenter({
+        const loc = {
           lat: position.coords.latitude,
           lng: position.coords.longitude
-        });
+        };
+        setUserLocation(loc);
+        setSortBy('distance');
+        
+        setMapCenter(loc);
         setMapZoom(13);
         setIsLocating(false);
       },
@@ -157,7 +161,9 @@ function App() {
   const [filterRecommended, setFilterRecommended] = useState(false);
   const [selectedMunicipality, setSelectedMunicipality] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-
+  const [sortBy, setSortBy] = useState<'none' | 'distance'>('none');
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  
   // Mountain details popup timer
   const [showMountainDetails, setShowMountainDetails] = useState(false);
   const mountainTimerRef = useRef<any>(null);
@@ -208,14 +214,37 @@ function App() {
   }, []);
 
   // Filtered mountains list
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371e3; // metres
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) *
+      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
   const filteredMountains = React.useMemo(() => {
-    return validMountains.filter((m) => {
+    let list = validMountains.filter((m) => {
       const matchesMuni = !selectedMunicipality || m.市町村 === selectedMunicipality;
       const matchesRec = !filterRecommended || m.エントリーコースお勧め山 === true;
       const matchesSearch = !searchQuery || m.山名.includes(searchQuery);
       return matchesMuni && matchesRec && matchesSearch;
     });
-  }, [selectedMunicipality, filterRecommended, searchQuery]);
+    
+    if (sortBy === 'distance' && userLocation) {
+      list = [...list].sort((a, b) => {
+        const distA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lon);
+        const distB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lon);
+        return distA - distB;
+      });
+    }
+    
+    return list;
+  }, [selectedMunicipality, filterRecommended, searchQuery, sortBy, userLocation]);
 
   const MAP_RESTRICTION = {
     north: 34.45,
@@ -438,7 +467,6 @@ function App() {
                     </option>
                   ))}
                 </select>
-
                 <button
                   onClick={() => setFilterRecommended(!filterRecommended)}
                   className={`py-2 px-2 border rounded-xl flex items-center justify-center gap-1 transition-all text-[11px] font-bold ${
@@ -451,6 +479,19 @@ function App() {
                   <span>お勧めのみ</span>
                 </button>
               </div>
+
+              <button
+                onClick={handleLocateCurrentPosition}
+                disabled={isLocating}
+                className={`w-full py-2 px-2 border rounded-xl flex items-center justify-center gap-1 transition-all text-[11px] font-bold ${
+                  sortBy === 'distance'
+                    ? 'bg-emerald-500 text-white border-emerald-400 shadow-sm'
+                    : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                } disabled:opacity-50`}
+              >
+                <Navigation className={`w-3 h-3 ${isLocating ? 'animate-pulse' : ''}`} />
+                <span>{sortBy === 'distance' ? '現在地順' : '現在地から探す'}</span>
+              </button>
             </div>
 
             {/* Mountains Scrollable List */}
