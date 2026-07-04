@@ -127,6 +127,7 @@ function App() {
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(9);
   const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
+  const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [edgeGlow, setEdgeGlow] = useState({ top: false, bottom: false, left: false, right: false });
 
   // Filter States
@@ -148,6 +149,7 @@ function App() {
 
   const handleSelectMountain = useCallback((no: number) => {
     navigate(`/explore/${no}`);
+    setIsSearchDialogOpen(false);
     
     setShowMountainDetails(true);
     if (mountainTimerRef.current) {
@@ -259,21 +261,32 @@ function App() {
           style={{ backgroundImage: `url(${heroBg})` }}
         >
           <div className="absolute inset-0 bg-black/55"></div>
-          <div className="flex items-center relative z-10">
+          <div className="flex items-center relative z-10 gap-2">
+            <div className="flex items-center">
+              <button
+                onClick={() => navigate(-1)}
+                className="py-1 md:py-2 pr-2 md:pr-4 pl-0 md:pl-2 -ml-1 md:-ml-2 text-white/90 hover:text-emerald-300 transition-colors flex items-center"
+                aria-label="戻る"
+                title="前の画面に戻る"
+              >
+                <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+              <button
+                onClick={() => setIsTitleDialogOpen(true)}
+                className="text-sm md:text-base font-bold text-white flex items-center gap-1.5 md:gap-2 hover:text-emerald-200 transition-colors"
+              >
+                <img src={yamaIcon} alt="Icon" className="w-4 h-4 md:w-5 md:h-5 rounded-full" referrerPolicy="no-referrer" />
+                えひめの山
+              </button>
+            </div>
+            
+            {/* Mobile Search Open Button */}
             <button
-              onClick={() => navigate(-1)}
-              className="py-1 md:py-2 pr-4 md:pr-4 pl-0 md:pl-2 -ml-1 md:-ml-2 text-white/90 hover:text-emerald-300 transition-colors flex items-center"
-              aria-label="戻る"
-              title="前の画面に戻る"
+              onClick={() => setIsSearchDialogOpen(true)}
+              className="md:hidden ml-1 p-1.5 text-white/90 bg-white/10 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center"
+              aria-label="検索して探す"
             >
-              <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
-            <button
-              onClick={() => setIsTitleDialogOpen(true)}
-              className="text-sm md:text-base font-bold text-white flex items-center gap-1.5 md:gap-2 hover:text-emerald-200 transition-colors"
-            >
-              <img src={yamaIcon} alt="Icon" className="w-4 h-4 md:w-5 md:h-5 rounded-full" referrerPolicy="no-referrer" />
-              えひめの山
+              <Search className="w-4 h-4" />
             </button>
           </div>
           <button 
@@ -332,7 +345,27 @@ function App() {
             </div>
           )}
 
-          <div className="md:w-96 w-full bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col transition-all duration-300 z-10 h-1/2 md:h-full">
+          {/* Search Dialog on Mobile, Sidebar on Desktop */}
+          <div className={`
+            md:flex md:w-96 md:bg-white md:border-r md:border-gray-200 md:flex-col md:transition-all md:duration-300 md:z-10 md:h-full
+            ${isSearchDialogOpen 
+              ? 'fixed inset-0 z-[100] bg-white flex flex-col animate-in slide-in-from-bottom-4 duration-300' 
+              : 'hidden'
+            }
+          `}>
+            {/* Header for Mobile Dialog */}
+            <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-100 bg-white flex-shrink-0">
+              <h2 className="font-bold text-gray-800 flex items-center gap-2">
+                <Search className="w-5 h-5 text-emerald-600" />
+                山を探す
+              </h2>
+              <button 
+                onClick={() => setIsSearchDialogOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors rounded-full"
+              >
+                <X size={20} />
+              </button>
+            </div>
             {/* Search and Filters Header */}
             <div className="p-4 border-b border-gray-100 space-y-3 flex-shrink-0 bg-white shadow-xs">
               {/* Search input with search icon */}
