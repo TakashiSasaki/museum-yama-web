@@ -1,0 +1,38 @@
+name: Draft PR to Main
+
+on:
+  push:
+    branches:
+      - jules
+      - chatgpt
+      - codex
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-draft-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Draft PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 既にこのブランチからmainへのオープンなPRが存在するか確認
+          EXISTING_PR=$(gh pr list --base main --head ${{ github.ref_name }} --state open --json url --jq '.[0].url')
+          
+          if [ -z "$EXISTING_PR" ]; then
+            gh pr create \
+              --base main \
+              --head ${{ github.ref_name }} \
+              --title "Merge ${{ github.ref_name }} into main" \
+              --body "エージェント (\`${{ github.ref_name }}\`) からの変更を \`main\` へ反映するための自動生成されたドラフトPRです。" \
+              --draft
+            echo "Draft Pull request created."
+          else
+            echo "Pull request already exists: $EXISTING_PR. Skipping PR creation."
+          fi
