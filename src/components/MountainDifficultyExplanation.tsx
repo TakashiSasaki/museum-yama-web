@@ -17,7 +17,7 @@ const YamapIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-import { MountainRecord } from '../features/explore/exploreUtils';
+import { MountainRecord } from '../lib/mountainData';
 
 interface MountainDifficultyExplanationProps {
   mountain: MountainRecord;

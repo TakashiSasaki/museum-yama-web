@@ -32,10 +32,12 @@ To reduce the number of DOM nodes generated for offscreen markers, we implemente
 - **List Item Memoization**: The mountain list inside `ExploreSearchPanel` was extracted into a `MountainListItem` component wrapped in `React.memo`, preventing the entire list of ~150 DOM nodes from re-rendering every time the user interacts with the UI.
 - **Incremental Rendering**: Instead of rendering all 100+ items at once, `ExploreSearchPanel` now renders a limited batch (40 items initially). A "Load More" (さらに表示) button allows appending more items, significantly reducing initial layout costs and avoiding virtual scroll complexity. The limit resets whenever a filter changes.
 
-### 5. Type Safety
+### 5. Shared Mountain Data Layer
 
-- Aligned the `MountainRecord` definition closely with `mountain_all.json` (`標高` as `string | number`, nullable fields, etc.).
-- Removed previous `as any` casting in favor of proper shared types across the 2D map components.
+To prevent 3D components (`/earth`) and shared components (`MountainDifficultyExplanation`) from inappropriately depending on 2D feature utilities, we established a shared `src/lib/mountainData.ts` module:
+- Extracted the core `MountainRecord` type, aligning it precisely with `mountain_all.json` (`標高` as `string | number`, optional fields handling).
+- Centralized the extraction of `validMountains` so both 2D and 3D map views can pull valid data consistently without duplicating the filtering logic.
+- Crucially, this sharing is strictly limited to static data extraction and typing. The **UI, camera logic, state management, and markers remain entirely isolated** between the 2D mobile view and the 3D digital signage view.
 
 ### 6. Component Organization and Memoization
 
@@ -52,19 +54,29 @@ These components are wrapped in `React.memo`, preventing re-renders of the map w
 We enabled `reuseMaps={true}` on the `ExploreMap` component's `<Map>`. This instructs `@vis.gl/react-google-maps` to pool and reuse the underlying Google Maps instance when the component mounts and unmounts, bypassing the expensive initialization cost of a new Maps instance on subsequent visits to `/explore`. 
 Note: We deliberately avoided adding this to `/earth` (the 3D map) to ensure we don't disrupt its specialized context (signage/WebGL).
 
+### 8. Dev-only Performance Profiling
+
+We added a lightweight, dev-only utility (`logPerformanceMetrics`) to output key counts during interaction:
+- Filtered mountains length
+- Rendered list size (`renderLimit` increments)
+- Visible markers count (culling effectiveness)
+- Total `onIdle` firing count
+
+This hook only logs in development mode (`import.meta.env.DEV`) and acts as a baseline to verify the effects of future optimizations without requiring a heavy external profiling library at this stage.
+
 ## Remaining Candidates (Next Steps)
 
 This stride focused on structural reactivity improvements without fundamentally changing the visual representation of the map. The following steps remain strong candidates for future performance milestones:
 
-1. **Marker Clustering**: 
-   Currently, all visible mountain markers are rendered independently. Transitioning to a clustering solution (like `@vis.gl/react-google-maps`'s `MarkerClusterer`) would lower DOM complexity significantly when zoomed out.
-2. **Simplified Markers**: 
-   The custom SVG `AdvancedMarker`s look great but are relatively complex (shadows, multiple paths). Switching to simpler paths or raster images based on zoom level would reduce SVG composite time.
-3. **Formal Virtualization**:
-   If incremental rendering is still too slow on very low-end devices, a formalized virtualized list (like `react-window` or `react-virtuoso`) might be necessary, though it adds significant complexity.
-4. **Data Splitting**:
-   Moving metadata processing further out of the main thread or splitting datasets.
-5. **Formal Profiling**:
+1. **Formal Profiling & Device Testing**:
    - Utilize Chrome's Performance tab (CPU throttling to 4x/6x slowdown) to measure raw scripting vs rendering time during fast panning.
-   - Profile the time-to-interactive (TTI) on actual mobile devices.
+   - Profile the time-to-interactive (TTI) on actual mobile devices to assess if current incremental limits are aggressive enough.
+2. **Marker Clustering**: 
+   Currently, all visible mountain markers are rendered independently. Transitioning to a clustering solution (like `@vis.gl/react-google-maps`'s `MarkerClusterer`) would lower DOM complexity significantly when zoomed out.
+3. **Simplified Markers**: 
+   The custom SVG `AdvancedMarker`s look great but are relatively complex (shadows, multiple paths). Switching to simpler paths or raster images based on zoom level would reduce SVG composite time.
+4. **Formal Virtualization**:
+   If incremental rendering is still too slow on very low-end devices, a formalized virtualized list (like `react-window` or `react-virtuoso`) might be necessary, though it adds significant complexity.
+5. **Data Splitting**:
+   Moving metadata processing further out of the main thread or splitting datasets.
 

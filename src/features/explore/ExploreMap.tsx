@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import { getDifficultyColor, MAP_RESTRICTION, defaultCenter, MountainRecord, isMarkerVisible, PlainBounds } from './exploreUtils';
+import { getDifficultyColor, MAP_RESTRICTION, defaultCenter, isMarkerVisible, PlainBounds } from './exploreUtils';
+import { MountainRecord } from '../../lib/mountainData';
 import { MountainDifficultyExplanation } from '../../components/MountainDifficultyExplanation';
+
+import { logPerformanceMetrics } from './performanceDebug';
 
 const HeartMarker = ({ color, isSelected }: { color: string; isSelected?: boolean }) => (
   <svg width={isSelected ? "46" : "34"} height={isSelected ? "46" : "34"} viewBox="0 0 24 24" fill={color} stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0px 3px 5px rgba(0,0,0,0.45))', transition: 'all 0.15s ease-out' }}>
@@ -120,9 +123,10 @@ export const ExploreMap = React.memo(({
       return isMarkerVisible(mountain.lat, mountain.lon, visibleBounds);
     });
 
-    if (import.meta.env.DEV) {
-      console.debug(`[ExploreMap] Culling: ${visible.length} / ${filteredMountains.length} markers visible`);
-    }
+    logPerformanceMetrics('ExploreMap', {
+      filteredCount: filteredMountains.length,
+      visibleMarkerCount: visible.length,
+    });
 
     return visible;
   }, [filteredMountains, visibleBounds, selectedMountain]);

@@ -4,9 +4,9 @@ import { APIProvider } from '@vis.gl/react-google-maps';
 import { Home, ChevronLeft, Search, Navigation } from 'lucide-react';
 import heroBg from '../assets/background_new.jpg';
 import yamaIcon from '../assets/yama_icon.svg';
-import mountainsData from '../../mountain_all.json';
 
-import { calculateDistance, MAP_RESTRICTION, MountainRecord } from '../features/explore/exploreUtils';
+import { calculateDistance, MAP_RESTRICTION } from '../features/explore/exploreUtils';
+import { MountainRecord, getValidMountains } from '../lib/mountainData';
 import { ExploreSearchPanel } from '../features/explore/ExploreSearchPanel';
 import { ExploreTitleDialog } from '../features/explore/ExploreTitleDialog';
 import { ExploreMap } from '../features/explore/ExploreMap';
@@ -18,12 +18,13 @@ const API_KEY =
   '';
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
 
-const validMountains = (mountainsData as any[]).filter(
-  (m) => m.lat !== null && m.lon !== null
-) as MountainRecord[];
+const validMountains = getValidMountains();
+
+import { logPerformanceMetrics } from '../features/explore/performanceDebug';
 
 export default function ExplorePage() {
   const { hikeId } = useParams();
+  const idleCount = useRef(0);
   const navigate = useNavigate();
   const selectedMountainNo = hikeId ? parseInt(hikeId, 10) : null;
 
@@ -134,11 +135,18 @@ export default function ExplorePage() {
   }, [selectedMunicipality, filterRecommended, deferredSearchQuery, sortBy, userLocation]);
 
   const handleMapIdle = useCallback((ev: any) => {
+    idleCount.current += 1;
     const mapCenter = ev.map.getCenter();
     if (!mapCenter) return;
     
     const lat = mapCenter.lat();
     const lng = mapCenter.lng();
+
+    logPerformanceMetrics('ExplorePage', {
+      idleCount: idleCount.current,
+      lat: lat.toFixed(4),
+      lng: lng.toFixed(4)
+    });
     const TOLERANCE = 0.005;
     
     const newTop = lat >= MAP_RESTRICTION.north - TOLERANCE;

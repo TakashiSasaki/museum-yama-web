@@ -1,6 +1,8 @@
 import React from 'react';
 import { Search, Heart, Navigation, X } from 'lucide-react';
-import { getDifficultyColor, MountainRecord } from './exploreUtils';
+import { getDifficultyColor } from './exploreUtils';
+import { MountainRecord } from '../../lib/mountainData';
+import { logPerformanceMetrics } from './performanceDebug';
 
 interface ExploreSearchPanelProps {
   isSearchDialogOpen: boolean;
@@ -119,11 +121,12 @@ export const ExploreSearchPanel = React.memo(({
   selectedMountainNo,
   handleSelectMountain
 }: ExploreSearchPanelProps) => {
-  const [renderLimit, setRenderLimit] = React.useState(40);
+  const getInitialLimit = () => window.innerWidth < 768 ? 40 : 80;
+  const [renderLimit, setRenderLimit] = React.useState(getInitialLimit);
 
   // Reset limit when filters change
   React.useEffect(() => {
-    setRenderLimit(40);
+    setRenderLimit(getInitialLimit());
   }, [searchQuery, selectedMunicipality, filterRecommended, sortBy]);
 
   const renderedMountains = React.useMemo(() => {
@@ -136,9 +139,11 @@ export const ExploreSearchPanel = React.memo(({
         limited.push(filteredMountains[selectedIndex]);
       }
     }
-    if (import.meta.env.DEV) {
-      console.debug(`[ExploreSearchPanel] List rendered: ${limited.length} / ${filteredMountains.length}`);
-    }
+    logPerformanceMetrics('ExploreSearchPanel', {
+      filteredCount: filteredMountains.length,
+      renderedListCount: limited.length,
+      renderLimit
+    });
     return limited;
   }, [filteredMountains, renderLimit, selectedMountainNo]);
   return (
@@ -250,7 +255,7 @@ export const ExploreSearchPanel = React.memo(({
             {filteredMountains.length > renderLimit && (
               <div className="col-span-2 md:col-span-1 p-2 flex justify-center">
                 <button
-                  onClick={() => setRenderLimit(prev => prev + 40)}
+                  onClick={() => setRenderLimit(prev => prev + getInitialLimit())}
                   className="px-4 py-2 bg-gray-100 text-gray-700 font-bold text-xs rounded-full hover:bg-gray-200 transition-colors w-full"
                 >
                   さらに表示

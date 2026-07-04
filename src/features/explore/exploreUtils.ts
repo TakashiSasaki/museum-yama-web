@@ -29,18 +29,6 @@ export const MAP_RESTRICTION = {
 
 export const defaultCenter = { lat: 33.8416, lng: 132.7661 };
 
-export interface MountainRecord {
-  No: number;
-  山名: string;
-  市町村: string | null;
-  lat: number;
-  lon: number;
-  標高: string | number;
-  難易度ランク: number;
-  エントリーコースお勧め山?: boolean | null;
-  YAMAPアクティビティID?: string | number | null;
-}
-
 export interface PlainBounds {
   north: number;
   south: number;

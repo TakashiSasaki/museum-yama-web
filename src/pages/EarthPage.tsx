@@ -6,7 +6,7 @@ import { useHikes } from '../hooks/useHikes';
 import yamaIcon from '../assets/yama_icon.svg';
 import { MapNavigationGuide } from '../components/MapNavigationGuide';
 import { MountainDifficultyExplanation } from '../components/MountainDifficultyExplanation';
-import mountainsData from '../../mountain_all.json';
+import { MountainRecord, getValidMountains } from '../lib/mountainData';
 
 const API_KEY =
   process.env.GOOGLE_MAPS_PLATFORM_KEY ||
@@ -15,9 +15,7 @@ const API_KEY =
   '';
 
 // Filter out valid mountains once at module load
-const validMountains = (mountainsData as any[]).filter(
-  (m) => m.lat !== null && m.lon !== null
-);
+const validMountains = getValidMountains();
 
 // Difficulty rank colors: 1: Purple, 2: Blue, 3: Green, 4: Orange, 5: Red
 const getDifficultyColor = (rank: number) => {
