@@ -15,6 +15,22 @@ import mountainsData from '../mountain_all.json';
 
 import EarthPage from './pages/EarthPage';
 
+const YamapIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 100 100" 
+    fill="currentColor" 
+    className={className} 
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path 
+      d="M 50 15 L 85 85 L 50 85 L 50 45 L 30 85 L 15 85 Z" 
+      stroke="currentColor" 
+      strokeWidth="8" 
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const API_KEY =
   process.env.GOOGLE_MAPS_PLATFORM_KEY ||
   (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
@@ -393,59 +409,48 @@ function App() {
                       key={mountain.No}
                       onClick={() => handleSelectMountain(mountain.No)}
                       style={{ borderLeftColor: color, borderLeftWidth: '5px' }}
-                      className={`p-3 rounded-xl cursor-pointer transition-all border flex flex-col ${
+                      className={`p-2 rounded-xl cursor-pointer transition-all border flex items-center justify-between gap-2 ${
                         isSelected
                           ? 'border-emerald-500 bg-emerald-50/40 shadow-sm transform scale-[1.01]'
                           : 'border-gray-100 hover:border-emerald-200 hover:bg-gray-50/30'
                       }`}
                     >
-                      <div className="flex justify-between items-start gap-1">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[9px] font-bold text-gray-400 tracking-wider">
-                              {mountain.市町村 || '愛媛県'}
+                      <div className="min-w-0 flex-1 flex flex-col justify-center">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[9px] font-bold text-gray-400 tracking-wider truncate">
+                            {mountain.市町村 || '愛媛県'}
+                          </span>
+                          {mountain.エントリーコースお勧め山 === true && (
+                            <span className="text-[8px] bg-rose-500/10 text-rose-500 border border-rose-500/10 font-bold px-1 rounded flex items-center gap-0.5 leading-none py-0.5">
+                              <Heart className="w-2.5 h-2.5 fill-current" />
+                              <span>お勧め</span>
                             </span>
-                            {mountain.エントリーコースお勧め山 === true && (
-                              <span className="text-[8px] bg-rose-500/10 text-rose-500 border border-rose-500/10 font-bold px-1 rounded flex items-center gap-0.5 leading-none py-0.5">
-                                <Heart className="w-2.5 h-2.5 fill-current" />
-                                <span>お勧め</span>
-                              </span>
-                            )}
-                          </div>
-                          <h3 className="font-bold text-gray-800 leading-snug mt-1 flex items-baseline gap-1.5 min-w-0">
-                            <span className="text-sm truncate block">{mountain.山名}</span>
-                            <span className="text-[10px] font-mono text-gray-400 font-medium">{mountain.標高}m</span>
-                          </h3>
+                          )}
+                          <span className="text-[10px] font-mono text-gray-400 font-medium ml-0.5">{mountain.標高}m</span>
                         </div>
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded font-mono flex-shrink-0" style={{ color: color, backgroundColor: `${color}15` }}>
+                        <h3 className="font-bold text-gray-800 leading-snug flex items-center gap-1.5 min-w-0 mt-0.5">
+                          <span className="text-sm truncate block">{mountain.山名}</span>
+                        </h3>
+                      </div>
+                      
+                      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded font-mono" style={{ color: color, backgroundColor: `${color}15` }}>
                           難易度.{mountain.難易度ランク}
                         </span>
-                      </div>
-
-                      {isSelected && (
-                        <div className="mt-2 pt-2 border-t border-emerald-100 flex items-center justify-between gap-2 flex-wrap">
-                          {mountain.YAMAPアクティビティID ? (
-                            <a
-                              href={`https://yamap.com/activities/${mountain.YAMAPアクティビティID}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[11px] flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-bold"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              YAMAPで見る <ExternalLink size={10} />
-                            </a>
-                          ) : (
-                            <span className="text-[9px] text-gray-400 italic">GPSログ未掲載</span>
-                          )}
-                          
-                          <button
-                            onClick={handleClose}
-                            className="text-[10px] text-gray-500 hover:text-gray-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-gray-200 shadow-xs"
+                        {mountain.YAMAPアクティビティID && (
+                          <a
+                            href={`https://yamap.com/activities/${mountain.YAMAPアクティビティID}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-[#E60012]/10 hover:bg-[#E60012]/20 text-[#E60012] transition-colors px-1.5 py-0.5 rounded-full flex items-center justify-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                            title="YAMAPで開く"
                           >
-                            閉じる <X size={10} />
-                          </button>
-                        </div>
-                      )}
+                            <YamapIcon className="w-3 h-3" />
+                            <span className="text-[8px] font-bold tracking-wider">YAMAP</span>
+                          </a>
+                        )}
+                      </div>
                     </div>
                   );
                 })
