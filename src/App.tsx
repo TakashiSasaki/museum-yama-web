@@ -283,10 +283,11 @@ function App() {
             {/* Mobile Search Open Button */}
             <button
               onClick={() => setIsSearchDialogOpen(true)}
-              className="md:hidden ml-1 p-1.5 text-white/90 bg-white/10 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center"
+              className="md:hidden ml-1 px-3 py-1.5 text-white/90 bg-white/10 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center gap-1"
               aria-label="検索して探す"
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-3.5 h-3.5" />
+              <span className="text-xs font-bold">探す</span>
             </button>
           </div>
           <button 
@@ -349,25 +350,25 @@ function App() {
           <div className={`
             md:flex md:w-96 md:bg-white md:border-r md:border-gray-200 md:flex-col md:transition-all md:duration-300 md:z-10 md:h-full
             ${isSearchDialogOpen 
-              ? 'fixed inset-0 z-[100] bg-white flex flex-col animate-in slide-in-from-bottom-4 duration-300' 
+              ? 'fixed inset-x-4 top-20 bottom-8 z-[100] bg-white/85 backdrop-blur-md flex flex-col rounded-3xl shadow-2xl animate-in slide-in-from-bottom-8 duration-300 overflow-hidden border border-white/50' 
               : 'hidden'
             }
           `}>
             {/* Header for Mobile Dialog */}
-            <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-100 bg-white flex-shrink-0">
+            <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-200/50 flex-shrink-0">
               <h2 className="font-bold text-gray-800 flex items-center gap-2">
                 <Search className="w-5 h-5 text-emerald-600" />
                 山を探す
               </h2>
               <button 
                 onClick={() => setIsSearchDialogOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors rounded-full"
+                className="p-1.5 text-gray-500 hover:text-gray-700 bg-black/5 hover:bg-black/10 transition-colors rounded-full"
               >
                 <X size={20} />
               </button>
             </div>
             {/* Search and Filters Header */}
-            <div className="p-4 border-b border-gray-100 space-y-3 flex-shrink-0 bg-white shadow-xs">
+            <div className="p-4 border-b border-gray-200/50 space-y-3 flex-shrink-0 shadow-xs md:bg-white">
               {/* Search input with search icon */}
               <div className="relative">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
