@@ -6,11 +6,12 @@ interface ExploreSearchPanelProps {
   isSearchDialogOpen: boolean;
   setIsSearchDialogOpen: (open: boolean) => void;
   searchQuery: string;
-  setSearchQuery: (query: string) => void;
+  onSearchQueryChange: (query: string) => void;
   selectedMunicipality: string | null;
-  setSelectedMunicipality: (muni: string | null) => void;
+  onMunicipalityChange: (muni: string) => void;
   filterRecommended: boolean;
-  setFilterRecommended: (val: boolean) => void;
+  onRecommendedToggle: (recommended: boolean) => void;
+  onResetFilters: () => void;
   handleLocateCurrentPosition: () => void;
   isLocating: boolean;
   sortBy: 'none' | 'distance';
@@ -103,11 +104,12 @@ export const ExploreSearchPanel = React.memo(({
   isSearchDialogOpen,
   setIsSearchDialogOpen,
   searchQuery,
-  setSearchQuery,
+  onSearchQueryChange,
   selectedMunicipality,
-  setSelectedMunicipality,
+  onMunicipalityChange,
   filterRecommended,
-  setFilterRecommended,
+  onRecommendedToggle,
+  onResetFilters,
   handleLocateCurrentPosition,
   isLocating,
   sortBy,
@@ -117,6 +119,28 @@ export const ExploreSearchPanel = React.memo(({
   selectedMountainNo,
   handleSelectMountain
 }: ExploreSearchPanelProps) => {
+  const [renderLimit, setRenderLimit] = React.useState(40);
+
+  // Reset limit when filters change
+  React.useEffect(() => {
+    setRenderLimit(40);
+  }, [searchQuery, selectedMunicipality, filterRecommended, sortBy]);
+
+  const renderedMountains = React.useMemo(() => {
+    // Make sure we include the selected mountain if it's beyond the limit
+    const limited = filteredMountains.slice(0, renderLimit);
+    if (selectedMountainNo) {
+      const selectedIndex = filteredMountains.findIndex(m => m.No === selectedMountainNo);
+      if (selectedIndex >= renderLimit) {
+        // Just append the selected mountain if it's cut off
+        limited.push(filteredMountains[selectedIndex]);
+      }
+    }
+    if (import.meta.env.DEV) {
+      console.debug(`[ExploreSearchPanel] List rendered: ${limited.length} / ${filteredMountains.length}`);
+    }
+    return limited;
+  }, [filteredMountains, renderLimit, selectedMountainNo]);
   return (
     <div className={`
       md:flex md:w-96 md:bg-white md:border-r md:border-gray-200 md:flex-col md:transition-all md:duration-300 md:z-10 md:h-full
@@ -148,11 +172,11 @@ export const ExploreSearchPanel = React.memo(({
             placeholder="山名・キーワードで検索..."
             className="w-full text-xs pl-8 pr-8 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
           />
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery('')}
+              onClick={() => onSearchQueryChange('')}
               className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full p-0.5"
             >
               <X size={10} />
@@ -164,7 +188,7 @@ export const ExploreSearchPanel = React.memo(({
         <div className="grid grid-cols-2 gap-2">
           <select
             value={selectedMunicipality || ''}
-            onChange={(e) => setSelectedMunicipality(e.target.value || null)}
+            onChange={(e) => onMunicipalityChange(e.target.value)}
             className="text-[11px] py-2 px-2 border border-gray-200 rounded-xl font-sans focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-gray-50/50 outline-none"
           >
             <option value="">すべての市町村・島</option>
@@ -175,7 +199,7 @@ export const ExploreSearchPanel = React.memo(({
             ))}
           </select>
           <button
-            onClick={() => setFilterRecommended(!filterRecommended)}
+            onClick={() => onRecommendedToggle(!filterRecommended)}
             className={`py-2 px-2 border rounded-xl flex items-center justify-center gap-1 transition-all text-[11px] font-bold ${
               filterRecommended
                 ? 'bg-rose-500 text-white border-rose-400 shadow-sm'
@@ -207,25 +231,33 @@ export const ExploreSearchPanel = React.memo(({
           <div className="text-center py-12 text-gray-400 space-y-2 col-span-2 md:col-span-1">
             <p className="text-xs">該当する山が見つかりませんでした。</p>
             <button
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedMunicipality(null);
-                setFilterRecommended(false);
-              }}
+              onClick={onResetFilters}
               className="text-xs text-emerald-600 font-bold hover:underline"
             >
               フィルターをリセット
             </button>
           </div>
         ) : (
-          filteredMountains.map((mountain) => (
-            <MountainListItem
-              key={mountain.No}
-              mountain={mountain}
-              isSelected={selectedMountainNo === mountain.No}
-              onSelect={handleSelectMountain}
-            />
-          ))
+          <>
+            {renderedMountains.map((mountain) => (
+              <MountainListItem
+                key={mountain.No}
+                mountain={mountain}
+                isSelected={selectedMountainNo === mountain.No}
+                onSelect={handleSelectMountain}
+              />
+            ))}
+            {filteredMountains.length > renderLimit && (
+              <div className="col-span-2 md:col-span-1 p-2 flex justify-center">
+                <button
+                  onClick={() => setRenderLimit(prev => prev + 40)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 font-bold text-xs rounded-full hover:bg-gray-200 transition-colors w-full"
+                >
+                  さらに表示
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -154,6 +154,15 @@ export default function ExplorePage() {
     });
   }, []);
 
+  const handleSearchQueryChange = useCallback((q: string) => setSearchQuery(q), []);
+  const handleMunicipalityChange = useCallback((m: string) => setSelectedMunicipality(m), []);
+  const handleRecommendedToggle = useCallback((v: boolean) => setFilterRecommended(v), []);
+  const handleResetFilters = useCallback(() => {
+    setSearchQuery('');
+    setSelectedMunicipality('');
+    setFilterRecommended(false);
+  }, []);
+
   const navigateHome = useCallback(() => {
     navigate('/');
   }, [navigate]);
@@ -249,11 +258,12 @@ export default function ExplorePage() {
             isSearchDialogOpen={isSearchDialogOpen}
             setIsSearchDialogOpen={setIsSearchDialogOpen}
             searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
+            onSearchQueryChange={handleSearchQueryChange}
             selectedMunicipality={selectedMunicipality}
-            setSelectedMunicipality={setSelectedMunicipality}
+            onMunicipalityChange={handleMunicipalityChange}
             filterRecommended={filterRecommended}
-            setFilterRecommended={setFilterRecommended}
+            onRecommendedToggle={handleRecommendedToggle}
+            onResetFilters={handleResetFilters}
             handleLocateCurrentPosition={handleLocateCurrentPosition}
             isLocating={isLocating}
             sortBy={sortBy}

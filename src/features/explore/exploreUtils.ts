@@ -41,23 +41,26 @@ export interface MountainRecord {
   YAMAPアクティビティID?: string | number | null;
 }
 
+export interface PlainBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
+export const MARKER_CULLING_PADDING_DEGREES = 0.05; // approx 5km
+
 export const isMarkerVisible = (
   lat: number,
   lng: number,
-  bounds: google.maps.LatLngBounds | null
+  bounds: PlainBounds | null
 ) => {
   if (!bounds) return true;
   
-  const ne = bounds.getNorthEast();
-  const sw = bounds.getSouthWest();
-  
-  const latPadding = 0.05; // approx 5km
-  const lngPadding = 0.05; // approx 5km
-
   return (
-    lat >= sw.lat() - latPadding &&
-    lat <= ne.lat() + latPadding &&
-    lng >= sw.lng() - lngPadding &&
-    lng <= ne.lng() + lngPadding
+    lat >= bounds.south - MARKER_CULLING_PADDING_DEGREES &&
+    lat <= bounds.north + MARKER_CULLING_PADDING_DEGREES &&
+    lng >= bounds.west - MARKER_CULLING_PADDING_DEGREES &&
+    lng <= bounds.east + MARKER_CULLING_PADDING_DEGREES
   );
 };

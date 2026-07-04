@@ -22,7 +22,7 @@ Features that require knowing the current map bounds (like the Edge Glow) are no
 
 To reduce the number of DOM nodes generated for offscreen markers, we implemented basic viewport culling within `ExploreMap.tsx`:
 - It retrieves the current map bounds on `onIdle`.
-- It pads the bounds slightly (approx. 5km) to prevent markers popping in/out abruptly when panning.
+- It pads the bounds slightly (approx. 5km) and converts them into a plain data object (`PlainBounds`) to ensure reliable comparison and stable React state.
 - `filteredMountains` are further reduced to `visibleMarkerMountains` before being rendered as `AdvancedMarker`s.
 - To ensure UX consistency, the currently selected mountain and user location marker bypass the culling filter and are always rendered, even if offscreen.
 
@@ -30,18 +30,24 @@ To reduce the number of DOM nodes generated for offscreen markers, we implemente
 
 - **Deferred Query**: The search input updates immediately for a responsive feel, but the heavy lifting of filtering `validMountains` and updating the list/markers is wrapped in `useDeferredValue(searchQuery)`.
 - **List Item Memoization**: The mountain list inside `ExploreSearchPanel` was extracted into a `MountainListItem` component wrapped in `React.memo`, preventing the entire list of ~150 DOM nodes from re-rendering every time the user interacts with the UI.
+- **Incremental Rendering**: Instead of rendering all 100+ items at once, `ExploreSearchPanel` now renders a limited batch (40 items initially). A "Load More" (さらに表示) button allows appending more items, significantly reducing initial layout costs and avoiding virtual scroll complexity. The limit resets whenever a filter changes.
 
-### 5. Component Organization and Memoization
+### 5. Type Safety
+
+- Aligned the `MountainRecord` definition closely with `mountain_all.json` (`標高` as `string | number`, nullable fields, etc.).
+- Removed previous `as any` casting in favor of proper shared types across the 2D map components.
+
+### 6. Component Organization and Memoization
 
 To further isolate rendering costs, the monolithic `ExplorePage.tsx` was split into focused components under `src/features/explore/`:
 - `ExploreMap.tsx`: Wraps the Google Map, CameraControl, Edge Glow, and Viewport Culling.
-- `ExploreSearchPanel.tsx`: Handles all search inputs, municipality dropdowns, and the scrollable list of mountains.
+- `ExploreSearchPanel.tsx`: Handles all search inputs, municipality dropdowns, and the incremental list of mountains.
 - `ExploreTitleDialog.tsx`: The intro/title popup.
 - `exploreUtils.ts`: Pure functions and constants (distance calculation, difficulty colors, `MAP_RESTRICTION`).
 
 These components are wrapped in `React.memo`, preventing re-renders of the map when a user types in the search box, and preventing re-renders of the search panel when edge glow state updates.
 
-### 6. `reuseMaps` Prop
+### 7. `reuseMaps` Prop
 
 We enabled `reuseMaps={true}` on the `ExploreMap` component's `<Map>`. This instructs `@vis.gl/react-google-maps` to pool and reuse the underlying Google Maps instance when the component mounts and unmounts, bypassing the expensive initialization cost of a new Maps instance on subsequent visits to `/explore`. 
 Note: We deliberately avoided adding this to `/earth` (the 3D map) to ensure we don't disrupt its specialized context (signage/WebGL).
@@ -54,10 +60,11 @@ This stride focused on structural reactivity improvements without fundamentally 
    Currently, all visible mountain markers are rendered independently. Transitioning to a clustering solution (like `@vis.gl/react-google-maps`'s `MarkerClusterer`) would lower DOM complexity significantly when zoomed out.
 2. **Simplified Markers**: 
    The custom SVG `AdvancedMarker`s look great but are relatively complex (shadows, multiple paths). Switching to simpler paths or raster images based on zoom level would reduce SVG composite time.
-3. **List Virtualization**:
-   While `React.memo` helps, rendering the full filtered list (up to ~130 items) can still cause layout thrashing on lower-end devices. A virtualized list (like `react-window` or `react-virtuoso`) is a candidate if DOM nodes become a bottleneck.
+3. **Formal Virtualization**:
+   If incremental rendering is still too slow on very low-end devices, a formalized virtualized list (like `react-window` or `react-virtuoso`) might be necessary, though it adds significant complexity.
 4. **Data Splitting**:
    Moving metadata processing further out of the main thread or splitting datasets.
 5. **Formal Profiling**:
    - Utilize Chrome's Performance tab (CPU throttling to 4x/6x slowdown) to measure raw scripting vs rendering time during fast panning.
    - Profile the time-to-interactive (TTI) on actual mobile devices.
+

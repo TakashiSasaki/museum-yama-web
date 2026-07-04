@@ -17,18 +17,10 @@ const YamapIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-interface Mountain {
-  No: number;
-  山名: string;
-  標高: string;
-  難易度ランク: number;
-  市町村?: string;
-  エントリーコースお勧め山?: boolean | null;
-  YAMAPアクティビティID?: string | number;
-}
+import { MountainRecord } from '../features/explore/exploreUtils';
 
 interface MountainDifficultyExplanationProps {
-  mountain: Mountain;
+  mountain: MountainRecord;
   onClose: () => void;
   isDrawerVisible: boolean;
 }

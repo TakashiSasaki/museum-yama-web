@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import { getDifficultyColor, MAP_RESTRICTION, defaultCenter, MountainRecord, isMarkerVisible } from './exploreUtils';
+import { getDifficultyColor, MAP_RESTRICTION, defaultCenter, MountainRecord, isMarkerVisible, PlainBounds } from './exploreUtils';
 import { MountainDifficultyExplanation } from '../../components/MountainDifficultyExplanation';
 
 const HeartMarker = ({ color, isSelected }: { color: string; isSelected?: boolean }) => (
@@ -72,7 +72,7 @@ export const ExploreMap = React.memo(({
   showMountainDetails,
   handleCloseMountainDetails
 }: ExploreMapProps) => {
-  const [visibleBounds, setVisibleBounds] = useState<google.maps.LatLngBounds | null>(null);
+  const [visibleBounds, setVisibleBounds] = useState<PlainBounds | null>(null);
 
   const onMapIdle = useCallback((ev: any) => {
     // Let parent handle edge glow
@@ -81,7 +81,30 @@ export const ExploreMap = React.memo(({
     // Update local bounds for culling
     if (ev.map) {
       const bounds = ev.map.getBounds();
-      setVisibleBounds(bounds || null);
+      if (bounds) {
+        const ne = bounds.getNorthEast();
+        const sw = bounds.getSouthWest();
+        const newBounds = {
+          north: ne.lat(),
+          south: sw.lat(),
+          east: ne.lng(),
+          west: sw.lng(),
+        };
+
+        setVisibleBounds((prev) => {
+          if (!prev) return newBounds;
+          // Only update if changed significantly (e.g. > 0.001 deg) to avoid excessive re-renders
+          if (
+            Math.abs(prev.north - newBounds.north) > 0.001 ||
+            Math.abs(prev.south - newBounds.south) > 0.001 ||
+            Math.abs(prev.east - newBounds.east) > 0.001 ||
+            Math.abs(prev.west - newBounds.west) > 0.001
+          ) {
+            return newBounds;
+          }
+          return prev;
+        });
+      }
     }
   }, [handleMapIdle]);
 
@@ -89,13 +112,19 @@ export const ExploreMap = React.memo(({
   const visibleMarkerMountains = useMemo(() => {
     if (!visibleBounds) return filteredMountains;
     
-    return filteredMountains.filter(mountain => {
+    const visible = filteredMountains.filter(mountain => {
       // Always show selected mountain regardless of bounds
       if (selectedMountain && selectedMountain.No === mountain.No) {
         return true;
       }
       return isMarkerVisible(mountain.lat, mountain.lon, visibleBounds);
     });
+
+    if (import.meta.env.DEV) {
+      console.debug(`[ExploreMap] Culling: ${visible.length} / ${filteredMountains.length} markers visible`);
+    }
+
+    return visible;
   }, [filteredMountains, visibleBounds, selectedMountain]);
 
   return (
@@ -164,7 +193,7 @@ export const ExploreMap = React.memo(({
       {/* Floating difficulty description popup (Auto-closes in 30 seconds) */}
       {showMountainDetails && selectedMountain && (
         <MountainDifficultyExplanation
-          mountain={selectedMountain as any}
+          mountain={selectedMountain}
           onClose={handleCloseMountainDetails}
           isDrawerVisible={false}
         />
