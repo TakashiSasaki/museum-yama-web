@@ -88,6 +88,59 @@ jobs:
             fi
           fi
 
+  close-empty-pull-requests:
+    name: Close open PRs with no changed files
+    if: github.ref_name == 'main'
+    needs:
+      - sync-main-to-agent-branches
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Close PRs whose changed-file count is zero
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          open_prs=$(gh pr list \
+            --repo "${REPO}" \
+            --state open \
+            --limit 100 \
+            --json number,title,baseRefName,headRefName \
+            --jq '.[] | @base64')
+
+          if [ -z "${open_prs}" ]; then
+            echo "No open pull requests found."
+            exit 0
+          fi
+
+          echo "${open_prs}" | while read -r encoded_pr; do
+            if [ -z "${encoded_pr}" ]; then
+              continue
+            fi
+
+            pr_json=$(echo "${encoded_pr}" | base64 --decode)
+            pr_number=$(echo "${pr_json}" | jq -r '.number')
+            pr_title=$(echo "${pr_json}" | jq -r '.title')
+            base_branch=$(echo "${pr_json}" | jq -r '.baseRefName')
+            head_branch=$(echo "${pr_json}" | jq -r '.headRefName')
+
+            changed_file_count=$(gh pr view "${pr_number}" \
+              --repo "${REPO}" \
+              --json files \
+              --jq '.files | length')
+
+            echo "PR #${pr_number}: ${changed_file_count} changed files (${head_branch} -> ${base_branch})"
+
+            if [ "${changed_file_count}" = "0" ]; then
+              gh pr close "${pr_number}" \
+                --repo "${REPO}" \
+                --comment "Closing automatically because this pull request currently has no changed files after the latest \`main\` update. No branch was deleted."
+              echo "Closed empty PR #${pr_number}: ${pr_title}"
+            fi
+          done
+
   draft-pr-agent-branch-to-main:
     name: Create draft PR from ${{ github.ref_name }} to main
     if: github.ref_name == 'jules' || github.ref_name == 'chatgpt' || github.ref_name == 'codex'
