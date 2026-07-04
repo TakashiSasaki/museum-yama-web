@@ -1,0 +1,137 @@
+name: Branch Sync
+
+on:
+  push:
+    branches:
+      - main
+      - jules
+      - chatgpt
+      - codex
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: branch-sync-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  sync-main-to-agent-branches:
+    name: Sync main to ${{ matrix.target_branch }}
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target_branch:
+          - jules
+          - chatgpt
+          - codex
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge main into target branch or create PR on conflict
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_BRANCH: ${{ matrix.target_branch }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin main "${TARGET_BRANCH}" --prune
+
+          if git show-ref --verify --quiet "refs/remotes/origin/${TARGET_BRANCH}"; then
+            git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
+          else
+            echo "Target branch ${TARGET_BRANCH} does not exist. Creating it from origin/main."
+            git checkout -B "${TARGET_BRANCH}" "origin/main"
+            git push origin "HEAD:${TARGET_BRANCH}"
+            exit 0
+          fi
+
+          if git merge --no-ff --no-edit origin/main; then
+            echo "Merged origin/main into ${TARGET_BRANCH}."
+            git push origin "HEAD:${TARGET_BRANCH}"
+          else
+            echo "Conflict while merging origin/main into ${TARGET_BRANCH}. Creating or reusing PR."
+            git merge --abort || true
+
+            existing_pr=$(gh pr list \
+              --repo "${REPO}" \
+              --base "${TARGET_BRANCH}" \
+              --head "main" \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty')
+
+            if [ -n "${existing_pr}" ]; then
+              echo "Existing sync PR found: #${existing_pr}"
+            else
+              gh pr create \
+                --repo "${REPO}" \
+                --base "${TARGET_BRANCH}" \
+                --head "main" \
+                --title "Sync main into ${TARGET_BRANCH}" \
+                --body "Automated sync from \`main\` into \`${TARGET_BRANCH}\` could not be applied cleanly. Resolve conflicts in this PR to update \`${TARGET_BRANCH}\` with the latest \`main\` changes."
+            fi
+          fi
+
+  draft-pr-agent-branch-to-main:
+    name: Create draft PR from ${{ github.ref_name }} to main
+    if: github.ref_name == 'jules' || github.ref_name == 'chatgpt' || github.ref_name == 'codex'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create or reuse draft PR to main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_BRANCH: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin main "${SOURCE_BRANCH}" --prune
+
+          ahead_count=$(git rev-list --count "origin/main..origin/${SOURCE_BRANCH}")
+          if [ "${ahead_count}" = "0" ]; then
+            echo "${SOURCE_BRANCH} has no commits ahead of main. No PR needed."
+            exit 0
+          fi
+
+          existing_pr=$(gh pr list \
+            --repo "${REPO}" \
+            --base main \
+            --head "${SOURCE_BRANCH}" \
+            --state open \
+            --json number,isDraft \
+            --jq '.[0].number // empty')
+
+          if [ -n "${existing_pr}" ]; then
+            echo "Existing PR from ${SOURCE_BRANCH} to main found: #${existing_pr}"
+          else
+            gh pr create \
+              --repo "${REPO}" \
+              --base main \
+              --head "${SOURCE_BRANCH}" \
+              --draft \
+              --title "Merge ${SOURCE_BRANCH} into main" \
+              --body "Automated draft PR for reviewing and merging updates from \`${SOURCE_BRANCH}\` into \`main\`."
+          fi
