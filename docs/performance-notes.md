@@ -35,9 +35,10 @@ To reduce the number of DOM nodes generated for offscreen markers, we implemente
 ### 5. Shared Mountain Data Layer
 
 To prevent 3D components (`/earth`) and shared components (`MountainDifficultyExplanation`) from inappropriately depending on 2D feature utilities, we established a shared `src/lib/mountainData.ts` module:
-- Extracted the core `MountainRecord` type, aligning it precisely with `mountain_all.json` (`標高` as `string | number`, optional fields handling).
+- Extracted the core `RawMountainRecord` and `MountainRecord` types, aligning it precisely with `mountain_all.json` (`標高` as `string | number`, optional fields handling). The types are strictly guarded to ensure runtime valid metrics (`lat`/`lon` as numbers).
 - Centralized the extraction of `validMountains` so both 2D and 3D map views can pull valid data consistently without duplicating the filtering logic.
 - Crucially, this sharing is strictly limited to static data extraction and typing. The **UI, camera logic, state management, and markers remain entirely isolated** between the 2D mobile view and the 3D digital signage view.
+- Normalized municipality filter state in `ExplorePage` to strictly use `null` rather than empty strings, ensuring predictable nullish checks during list filtering.
 
 ### 6. Component Organization and Memoization
 
@@ -57,12 +58,12 @@ Note: We deliberately avoided adding this to `/earth` (the 3D map) to ensure we 
 ### 8. Dev-only Performance Profiling
 
 We added a lightweight, dev-only utility (`logPerformanceMetrics`) to output key counts during interaction:
-- Filtered mountains length
-- Rendered list size (`renderLimit` increments)
-- Visible markers count (culling effectiveness)
-- Total `onIdle` firing count
+- Filtered mountains length (`filteredCount`)
+- Rendered list size (`renderedListCount` / `renderLimit`)
+- Visible markers count (`visibleMarkerCount`)
+- Total `onIdle` firing count (`idleCount`)
 
-This hook only logs in development mode (`import.meta.env.DEV`) and acts as a baseline to verify the effects of future optimizations without requiring a heavy external profiling library at this stage.
+This hook only logs in development mode (`import.meta.env.DEV`). It is now throttled (e.g. 1000ms intervals per component) to prevent excessive noise in the console during rapid panning or memoization evaluations, while acting as a baseline to verify the effects of future optimizations without requiring a heavy external profiling library.
 
 ## Remaining Candidates (Next Steps)
 

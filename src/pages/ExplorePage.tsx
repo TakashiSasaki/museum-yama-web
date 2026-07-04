@@ -163,11 +163,11 @@ export default function ExplorePage() {
   }, []);
 
   const handleSearchQueryChange = useCallback((q: string) => setSearchQuery(q), []);
-  const handleMunicipalityChange = useCallback((m: string) => setSelectedMunicipality(m), []);
+  const handleMunicipalityChange = useCallback((m: string | null) => setSelectedMunicipality(m), []);
   const handleRecommendedToggle = useCallback((v: boolean) => setFilterRecommended(v), []);
   const handleResetFilters = useCallback(() => {
     setSearchQuery('');
-    setSelectedMunicipality('');
+    setSelectedMunicipality(null);
     setFilterRecommended(false);
   }, []);
 

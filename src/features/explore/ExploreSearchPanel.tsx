@@ -10,7 +10,7 @@ interface ExploreSearchPanelProps {
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
   selectedMunicipality: string | null;
-  onMunicipalityChange: (muni: string) => void;
+  onMunicipalityChange: (muni: string | null) => void;
   filterRecommended: boolean;
   onRecommendedToggle: (recommended: boolean) => void;
   onResetFilters: () => void;
@@ -121,7 +121,7 @@ export const ExploreSearchPanel = React.memo(({
   selectedMountainNo,
   handleSelectMountain
 }: ExploreSearchPanelProps) => {
-  const getInitialLimit = () => window.innerWidth < 768 ? 40 : 80;
+  const getInitialLimit = () => typeof window !== 'undefined' && window.innerWidth < 768 ? 40 : 80;
   const [renderLimit, setRenderLimit] = React.useState(getInitialLimit);
 
   // Reset limit when filters change
@@ -193,7 +193,7 @@ export const ExploreSearchPanel = React.memo(({
         <div className="grid grid-cols-2 gap-2">
           <select
             value={selectedMunicipality || ''}
-            onChange={(e) => onMunicipalityChange(e.target.value)}
+            onChange={(e) => onMunicipalityChange(e.target.value || null)}
             className="text-[11px] py-2 px-2 border border-gray-200 rounded-xl font-sans focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-gray-50/50 outline-none"
           >
             <option value="">すべての市町村・島</option>
