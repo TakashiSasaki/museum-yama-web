@@ -65,9 +65,25 @@ We added a lightweight, dev-only utility (`logPerformanceMetrics`) to output key
 
 This hook only logs in development mode (`import.meta.env.DEV`). It is now throttled (e.g. 1000ms intervals per component) to prevent excessive noise in the console during rapid panning or memoization evaluations, while acting as a baseline to verify the effects of future optimizations without requiring a heavy external profiling library.
 
-## Remaining Candidates (Next Steps)
+## Current Status: Optimization Phase Paused
 
-This stride focused on structural reactivity improvements without fundamentally changing the visual representation of the map. The following steps remain strong candidates for future performance milestones:
+The current round of 2D performance improvements has substantially improved the perceived responsiveness of the mobile map compared with the earlier implementation. At this point, the structural optimization phase is considered **paused / complete for now**.
+
+The next performance-related work should not start with another speculative refactor. It should start with **real-device performance investigation**, using the actual target smartphones and browser environments. The goal is to determine which remaining bottleneck, if any, is still measurable in practice.
+
+Recommended future investigation targets:
+- Map panning and pinch-zoom smoothness on representative smartphones.
+- Search dialog open/close responsiveness.
+- Search text input latency with broad result sets.
+- Incremental mountain list scrolling and "さらに表示" behavior.
+- Marker count after viewport culling at different zoom levels and municipalities.
+- Initial load / time-to-interactive for `/`, `/explore`, and `/earth`.
+
+Future optimization work should be driven by these measurements. In particular, marker clustering, marker simplification, formal list virtualization, or data splitting should be treated as follow-up candidates only if real-device profiling shows that they address a concrete bottleneck.
+
+## Remaining Candidates (Future Work After Measurement)
+
+The following items remain candidates, but they should be selected based on real-device profiling rather than implemented preemptively:
 
 1. **Formal Profiling & Device Testing**:
    - Utilize Chrome's Performance tab (CPU throttling to 4x/6x slowdown) to measure raw scripting vs rendering time during fast panning.
@@ -80,4 +96,3 @@ This stride focused on structural reactivity improvements without fundamentally 
    If incremental rendering is still too slow on very low-end devices, a formalized virtualized list (like `react-window` or `react-virtuoso`) might be necessary, though it adds significant complexity.
 5. **Data Splitting**:
    Moving metadata processing further out of the main thread or splitting datasets.
-
