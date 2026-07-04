@@ -96,11 +96,13 @@ export const MountainDifficultyExplanation: React.FC<MountainDifficultyExplanati
   return (
     <div
       id="mountain-difficulty-popup"
-      className={`fixed z-50 pointer-events-auto transition-all duration-300 max-w-sm md:max-w-md w-[calc(100%-2rem)] mx-4 sm:mx-0 ${
-        isDrawerVisible
-          ? 'bottom-[33vh] sm:bottom-[26vh] md:bottom-[27vh] lg:bottom-[31vh]'
-          : 'bottom-6'
-      } right-4 sm:right-6 md:right-8 lg:right-10 animate-fade-in`}
+      className={`fixed z-50 pointer-events-auto transition-all duration-300
+        w-[calc(100%-2rem)] max-w-sm md:max-w-md md:w-[400px] mx-4 md:mx-0
+        ${
+          isDrawerVisible
+            ? 'bottom-[33vh] sm:bottom-[26vh] md:bottom-[27vh] lg:bottom-[31vh]'
+            : 'bottom-6'
+        } right-0 sm:right-2 md:right-8 lg:right-10 animate-fade-in`}
     >
       {/* Inline styles for the timer bar shrinking animation */}
       <style>{`
