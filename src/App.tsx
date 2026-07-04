@@ -613,6 +613,20 @@ function App() {
                   </AdvancedMarker>
                 );
               })}
+
+              {/* User Location Marker */}
+              {userLocation && (
+                <AdvancedMarker
+                  position={userLocation}
+                  title="現在地"
+                  zIndex={100}
+                >
+                  <div className="relative flex items-center justify-center">
+                    <div className="w-6 h-6 bg-blue-500/30 rounded-full animate-ping absolute"></div>
+                    <div className="w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow-md relative z-10"></div>
+                  </div>
+                </AdvancedMarker>
+              )}
             </Map>
 
             {/* Floating difficulty description popup (Auto-closes in 30 seconds) */}
