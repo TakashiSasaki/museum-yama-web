@@ -20,3 +20,10 @@ Welcome to the project! When working on this codebase, please adhere to the foll
 
 - The app uses `@vis.gl/react-google-maps`. Ensure any new map-related features use this library's components (`APIProvider`, `Map`, `AdvancedMarker`, etc.).
 - Ensure `GOOGLE_MAPS_PLATFORM_KEY` is loaded correctly via environment variables. Do not hardcode API keys.
+
+## 5. フロントエンドの構造と分離原則（重要）
+
+- **作業前確認**: このリポジトリでの開発作業を開始する前に、必ず `docs/frontend-structure.md` を読んでください。
+- **2D / 3D の分離**: このアプリには、スマートフォン向け2Dマップ (`/explore` など) と、展示・サイネージ向け3Dマップ (`/earth`) という、全く異なる利用文脈のフロントエンドが同居しています。
+- **安易な共通化の禁止**: UI、状態管理、カメラ制御、パフォーマンスチューニングなどを2Dと3D間で安易に共通化**しないでください**。共通化してよいのは `mountain_all.json` などの基礎データ層と、純粋なデータ処理ロジックのみです。
+- **コンテキストの確認**: 変更を行う際は、作業対象が「2D (モバイル)」なのか、「3D (サイネージ)」なのか、または「両方に影響する共有データ層」なのかを明確に認識してから作業を行ってください。
