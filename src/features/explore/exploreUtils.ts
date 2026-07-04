@@ -35,8 +35,29 @@ export interface MountainRecord {
   市町村: string | null;
   lat: number;
   lon: number;
-  標高: number;
+  標高: string | number;
   難易度ランク: number;
-  エントリーコースお勧め山?: boolean;
-  YAMAPアクティビティID?: string | null;
+  エントリーコースお勧め山?: boolean | null;
+  YAMAPアクティビティID?: string | number | null;
 }
+
+export const isMarkerVisible = (
+  lat: number,
+  lng: number,
+  bounds: google.maps.LatLngBounds | null
+) => {
+  if (!bounds) return true;
+  
+  const ne = bounds.getNorthEast();
+  const sw = bounds.getSouthWest();
+  
+  const latPadding = 0.05; // approx 5km
+  const lngPadding = 0.05; // approx 5km
+
+  return (
+    lat >= sw.lat() - latPadding &&
+    lat <= ne.lat() + latPadding &&
+    lng >= sw.lng() - lngPadding &&
+    lng <= ne.lng() + lngPadding
+  );
+};

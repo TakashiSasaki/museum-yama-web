@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import { getDifficultyColor, MAP_RESTRICTION, defaultCenter, MountainRecord } from './exploreUtils';
+import { getDifficultyColor, MAP_RESTRICTION, defaultCenter, MountainRecord, isMarkerVisible } from './exploreUtils';
 import { MountainDifficultyExplanation } from '../../components/MountainDifficultyExplanation';
 
 const HeartMarker = ({ color, isSelected }: { color: string; isSelected?: boolean }) => (
@@ -72,6 +72,32 @@ export const ExploreMap = React.memo(({
   showMountainDetails,
   handleCloseMountainDetails
 }: ExploreMapProps) => {
+  const [visibleBounds, setVisibleBounds] = useState<google.maps.LatLngBounds | null>(null);
+
+  const onMapIdle = useCallback((ev: any) => {
+    // Let parent handle edge glow
+    handleMapIdle(ev);
+    
+    // Update local bounds for culling
+    if (ev.map) {
+      const bounds = ev.map.getBounds();
+      setVisibleBounds(bounds || null);
+    }
+  }, [handleMapIdle]);
+
+  // Memoize visible mountains based on current bounds and selected mountain
+  const visibleMarkerMountains = useMemo(() => {
+    if (!visibleBounds) return filteredMountains;
+    
+    return filteredMountains.filter(mountain => {
+      // Always show selected mountain regardless of bounds
+      if (selectedMountain && selectedMountain.No === mountain.No) {
+        return true;
+      }
+      return isMarkerVisible(mountain.lat, mountain.lon, visibleBounds);
+    });
+  }, [filteredMountains, visibleBounds, selectedMountain]);
+
   return (
     <div className="flex-1 relative h-full w-full overflow-hidden">
       {/* Boundary Glow Effects */}
@@ -89,7 +115,7 @@ export const ExploreMap = React.memo(({
           latLngBounds: MAP_RESTRICTION,
           strictBounds: false,
         }}
-        onIdle={handleMapIdle}
+        onIdle={onMapIdle}
         mapId="EHIME_HIKE_MAP_ID"
         internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
         style={{ width: '100%', height: '100%' }}
@@ -100,7 +126,7 @@ export const ExploreMap = React.memo(({
         <CameraControl selectedMountain={selectedMountain} userLocation={userLocation} />
         
         {/* Filtered Mountains Interactive Pins */}
-        {filteredMountains.map(mountain => {
+        {visibleMarkerMountains.map(mountain => {
           const isSelected = selectedMountain?.No === mountain.No;
           const color = getDifficultyColor(mountain.難易度ランク);
           const isRecommended = mountain.エントリーコースお勧め山 === true;

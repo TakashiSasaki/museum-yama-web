@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo, useDeferredValue } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { Home, ChevronLeft, Search, Navigation } from 'lucide-react';
@@ -112,11 +112,13 @@ export default function ExplorePage() {
     return counts;
   }, []);
 
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+
   const filteredMountains = useMemo(() => {
     let list = validMountains.filter((m) => {
       const matchesMuni = !selectedMunicipality || m.市町村 === selectedMunicipality;
       const matchesRec = !filterRecommended || m.エントリーコースお勧め山 === true;
-      const matchesSearch = !searchQuery || m.山名.includes(searchQuery);
+      const matchesSearch = !deferredSearchQuery || m.山名.includes(deferredSearchQuery);
       return matchesMuni && matchesRec && matchesSearch;
     });
     
@@ -129,7 +131,7 @@ export default function ExplorePage() {
     }
     
     return list;
-  }, [selectedMunicipality, filterRecommended, searchQuery, sortBy, userLocation]);
+  }, [selectedMunicipality, filterRecommended, deferredSearchQuery, sortBy, userLocation]);
 
   const handleMapIdle = useCallback((ev: any) => {
     const mapCenter = ev.map.getCenter();

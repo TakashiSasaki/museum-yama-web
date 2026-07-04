@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Search, Heart, Navigation, X } from 'lucide-react';
 import { getDifficultyColor, MountainRecord } from './exploreUtils';
 
@@ -36,6 +36,68 @@ const YamapIcon = ({ className }: { className?: string }) => (
     />
   </svg>
 );
+
+const MountainListItem = React.memo(({ 
+  mountain, 
+  isSelected, 
+  onSelect 
+}: { 
+  mountain: MountainRecord; 
+  isSelected: boolean; 
+  onSelect: (no: number) => void;
+}) => {
+  const color = getDifficultyColor(mountain.難易度ランク);
+  
+  return (
+    <div
+      onClick={() => onSelect(mountain.No)}
+      style={{ borderLeftColor: color, borderLeftWidth: '5px' }}
+      className={`p-2 rounded-xl cursor-pointer transition-all border flex items-center justify-between gap-2 ${
+        isSelected
+          ? 'border-emerald-500 bg-emerald-50/40 shadow-sm transform scale-[1.01]'
+          : 'border-gray-100 hover:border-emerald-200 hover:bg-gray-50/30'
+      }`}
+    >
+      <div className="min-w-0 flex-1 flex flex-col justify-center">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[9px] font-bold text-gray-400 tracking-wider truncate">
+            {mountain.市町村 || '愛媛県'}
+          </span>
+          {mountain.エントリーコースお勧め山 === true && (
+            <span className="text-[8px] bg-rose-500/10 text-rose-500 border border-rose-500/10 font-bold px-1 rounded flex items-center gap-0.5 leading-none py-0.5">
+              <Heart className="w-2.5 h-2.5 fill-current" />
+              <span>お勧め</span>
+            </span>
+          )}
+          <span className="text-[10px] font-mono text-gray-400 font-medium ml-0.5">{mountain.標高}m</span>
+        </div>
+        <h3 className="font-bold text-gray-800 leading-snug flex items-center gap-1.5 min-w-0 mt-0.5">
+          <span className="text-sm truncate block">{mountain.山名}</span>
+        </h3>
+      </div>
+      
+      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded font-mono" style={{ color: color, backgroundColor: `${color}15` }}>
+          難易度.{mountain.難易度ランク}
+        </span>
+        {mountain.YAMAPアクティビティID && (
+          <a
+            href={`https://yamap.com/activities/${mountain.YAMAPアクティビティID}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-[#E60012]/10 hover:bg-[#E60012]/20 text-[#E60012] transition-colors px-1.5 py-0.5 rounded-full flex items-center justify-center gap-1"
+            onClick={(e) => e.stopPropagation()}
+            title="YAMAPで開く"
+          >
+            <YamapIcon className="w-3 h-3" />
+            <span className="text-[8px] font-bold tracking-wider">YAMAP</span>
+          </a>
+        )}
+      </div>
+    </div>
+  );
+});
+MountainListItem.displayName = 'MountainListItem';
 
 export const ExploreSearchPanel = React.memo(({
   isSearchDialogOpen,
@@ -156,59 +218,14 @@ export const ExploreSearchPanel = React.memo(({
             </button>
           </div>
         ) : (
-          filteredMountains.map((mountain) => {
-            const isSelected = selectedMountainNo === mountain.No;
-            const color = getDifficultyColor(mountain.難易度ランク);
-            return (
-              <div
-                key={mountain.No}
-                onClick={() => handleSelectMountain(mountain.No)}
-                style={{ borderLeftColor: color, borderLeftWidth: '5px' }}
-                className={`p-2 rounded-xl cursor-pointer transition-all border flex items-center justify-between gap-2 ${
-                  isSelected
-                    ? 'border-emerald-500 bg-emerald-50/40 shadow-sm transform scale-[1.01]'
-                    : 'border-gray-100 hover:border-emerald-200 hover:bg-gray-50/30'
-                }`}
-              >
-                <div className="min-w-0 flex-1 flex flex-col justify-center">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[9px] font-bold text-gray-400 tracking-wider truncate">
-                      {mountain.市町村 || '愛媛県'}
-                    </span>
-                    {mountain.エントリーコースお勧め山 === true && (
-                      <span className="text-[8px] bg-rose-500/10 text-rose-500 border border-rose-500/10 font-bold px-1 rounded flex items-center gap-0.5 leading-none py-0.5">
-                        <Heart className="w-2.5 h-2.5 fill-current" />
-                        <span>お勧め</span>
-                      </span>
-                    )}
-                    <span className="text-[10px] font-mono text-gray-400 font-medium ml-0.5">{mountain.標高}m</span>
-                  </div>
-                  <h3 className="font-bold text-gray-800 leading-snug flex items-center gap-1.5 min-w-0 mt-0.5">
-                    <span className="text-sm truncate block">{mountain.山名}</span>
-                  </h3>
-                </div>
-                
-                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded font-mono" style={{ color: color, backgroundColor: `${color}15` }}>
-                    難易度.{mountain.難易度ランク}
-                  </span>
-                  {mountain.YAMAPアクティビティID && (
-                    <a
-                      href={`https://yamap.com/activities/${mountain.YAMAPアクティビティID}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-[#E60012]/10 hover:bg-[#E60012]/20 text-[#E60012] transition-colors px-1.5 py-0.5 rounded-full flex items-center justify-center gap-1"
-                      onClick={(e) => e.stopPropagation()}
-                      title="YAMAPで開く"
-                    >
-                      <YamapIcon className="w-3 h-3" />
-                      <span className="text-[8px] font-bold tracking-wider">YAMAP</span>
-                    </a>
-                  )}
-                </div>
-              </div>
-            );
-          })
+          filteredMountains.map((mountain) => (
+            <MountainListItem
+              key={mountain.No}
+              mountain={mountain}
+              isSelected={selectedMountainNo === mountain.No}
+              onSelect={handleSelectMountain}
+            />
+          ))
         )}
       </div>
     </div>
